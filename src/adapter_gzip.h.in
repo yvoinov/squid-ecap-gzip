@@ -1,0 +1,38 @@
+/* (C) 2008  The Measurement Factory */
+/* (C) 2008-2016 Constantin Rack */
+/* (C) 2016-2020  Joe Lavand, Yuri Voinov */
+
+#ifndef ECAP_ADAPTER_DEFINES_H
+#define ECAP_ADAPTER_DEFINES_H
+
+/* this file should be included first from all sources */
+
+#if !__cplusplus >= 201103L || !__cplusplus >= 199711L
+  #error This library needs at least a C++11 compliant compiler
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "autoconf.h"
+#endif
+
+#define ECAP_SERVICE_NAME "ecap://www.thecacheworks.com/ecap_gzip_deflate"
+#define ECAP_COMPRESSION_LOG "/var/log/ecap_gzip_comp.log"
+#define ECAP_ERROR_LOG "/var/log/ecap_gzip_err.log"
+
+/* Error messages */
+#define C_ERR_STARTING_MSG "INIT: ecap_gzip_deflate adapter started"
+#define C_ERR_UNSUPP_PARAM "ERROR: unsupported configuration parameter "
+#define C_ERR_INVALID_PARAM "ERROR: deflateInit2 - Invalid parameter passed in to function"
+#define C_ERR_INSUFF_MEMORY "ERROR: deflateInit2 - Insufficient memory"
+#define C_ERR_VERSION_ZLIB "ERROR: deflateInit2 - The version of zlib.h and the version of the library linked do not match"
+#define C_ERR_UNKNOWN "ERROR: deflateInit2 Unknown error code"
+#define C_ERR_GZINIT_FAILED "ERROR: gzipInitialize failed"
+#define C_ERR_READING "ERROR: noteVbContentDone() deflate() - Error occured while reading object"
+#define C_ERR_STREAM_INCONS "ERROR: noteVbContentDone() deflate() - The stream state was inconsistent (e.g., next_in or next_out was NULL)"
+#define C_ERR_DEFLATE_INVALID "ERROR: noteVbContentDone() deflate() - The deflate data was invalid or incomplete"
+#define C_ERR_MALLOC_ERROR "ERROR: noteVbContentDone() deflate() - Memory could not be allocated for processing"
+#define C_ERR_RANOUT_OUT_BUFFER "ERROR: noteVbContentDone() deflate() - Ran out of output buffer for writing compressed bytes"
+#define C_ERR_VERSION_ZLIB_2 "ERROR: noteVbContentDone() deflate() - The version of zlib.h and the version of the library linked do not match"
+#define C_ERR_UNKNOWN_2 "ERROR: noteVbContentDone() deflate() Unknown error code "
+
+#endif /* ECAP_ADAPTER_DEFINES_H */

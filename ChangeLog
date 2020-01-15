@@ -1,0 +1,63 @@
+Version 1.5.3.0 (2018-07-18)
+* IMPROVEMENT: Changed maxsize default to 16777216 bytes. By Yuri Voinov.
+* FIX: MIN_COMP_FILE_SIZE set to 512 (instead of old 200 value) to avoid unnesessary work to unefficient compression of small files.
+       Due to TCP packet size, very small files compression requires excessive CPU cycles without gain. By Yuri Voinov.
+* FIX: Correct calculate compresscontext.Buffer size and avail_out (in according with Zlib documentation). By Yuri Voinov.
+* FIX: Remove obsolete stuff from READMEs. By Yuri Voinov.
+* FIX: Rewrite all third-party code and remove all remains C-rudiments. By Yuri Voinov.
+* FIX: Change license to BSD 3-clause. Service name changed to ecap://www.thecacheworks.com/ecap_gzip_deflate. By Yuri Voinov.
+
+Version 1.5.4.0 (2018-10-15)
+* IMPROVEMENT: Some refactoring to improve locality; better error messages readability. By Yuri Voinov.
+* FIX: Removed two unnesessary defines. By Yuri Voinov.
+* FIX: Removed unnesessary constant. By Yuri Voinov.
+
+Version 1.5.5.0 (2018-11-26)
+* IMPROVEMENT: configure.ac & Makefile.am improved. Detect compiler & set flags. By Yuri Voinov.
+* IMPROVEMENT: Set default compiler optimization level, if not defined. By Yuri Voinov.
+
+Version 1.5.6.0 (2018-12-16)
+*IMPROVEMENT: Some refactoring and code cleanup. By Yuri Voinov.
+
+Version 1.5.7.0 (2019-01-08)
+* IMPROVEMENT: Added check STL to configure.ac. By Yuri Voinov.
+* FIX: Removed unnesessary m4 macros/files. By Yuri Voinov.
+
+Version 1.5.8.0 (2019-03-22)
+* IMPROVEMENT: Optional ltalloc configuration added. By Yuri Voinov.
+* IMPROVEMENT: Cleanup Automake.am. By Yuri Voinov.
+* IMPROVEMENT: File IO with CTor. By Yuri Voinov.
+* IMPROVEMENT: Updated ltalloc. By Yuri Voinov.
+* FIX: Typo in ltalloc's likely/unlikely definition. By Yuri Voinov.
+
+Version 1.5.9.0 (2019-04-11)
+* IMPROVEMENT: --enable-ltalloc-gc option added, unused memory will free on stop() call. By Yuri Voinov.
+* IMPROVEMENT: .so version support added. By Yuri Voinov.
+* IMPROVEMENT: wrapper.cc added to support ltalloc in zlib too. By Yuri Voinov.
+* IMPROVEMENT: Got rid unnesessary macro from ltalloc. By Yuri Voinov.
+* IMPROVEMENT: wrapper.cc - realloc() reworked to call ltrealloc(). By Yuri Voinov.
+* FIX: Removed unnesessary VERSION macro from autoconf.h. By Yuri Voinov.
+* FIX: rc narrowing bug. Thanks Nikita Parfenovich for report. By Yuri Voinov.
+
+Version 1.6.0.0 (2019-05-14)
+* IMPROVEMENT: ltalloc 2.0.6. By Yuri Voinov.
+* IMPROVEMENT: Removed unnesessary constant contentXecapName. By Yuri Voinov.
+* IMPROVEMENT: acincludes updated. By Yuri Voinov.
+
+Version 1.6.0.1 (2019-05-18)
+* IMPROVEMENT: Renamed const compressname to contentXecapName. By Yuri Voinov.
+* FIX: Complete fix rc narrowing bug. By Yuri Voinov.
+
+Version 1.6.0.2 (2019-06-27)
+* IMPROVEMENT: Removed unused code. By Yuri Voinov.
+* FIX: Bug in ltmsize(). By Yuri Voinov.
+
+Version 1.6.0.3 (2020-01-15)
+* FIX: Build with ltalloc on *BSD. By Yuri Voinov.
+* IMPROVEMENT: Added automatic LTO (GCC only) support. By Yuri Voinov.
+* IMPROVEMENT: Added libecap version check. In some cases require to set/modify PKG_CONFIG_PATH. By Yuri Voinov.
+* IMPROVEMENT: Added workaround to detect egrep on some platforms. By Yuri Voinov.
+* IMPROVEMENT: Updated ltalloc. By Yuri Voinov.
+
+Version 1.6.0.4 (2020-01-15)
+* IMPROVEMENT: Refactoring. Replaced unique_ptr[] to std::vector. By Yuri Voinov.
