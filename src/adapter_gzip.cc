@@ -269,10 +269,6 @@ class Xaction: public libecap::adapter::Xaction {
 			bool requestContentXecapOk;
 			bool requestAcceptEncodingGzip;
 			bool requestAcceptEncodingDeflate;
-
-			Controls() : responseReject(true), responseContentTypeOk(false), requestAcceptEncodingOk(false),
-			requestContentLenghtOk(false), requestContentXecapOk(true), requestAcceptEncodingGzip(false),
-			requestAcceptEncodingDeflate(false) {}
 		};
 
 		Controls controlFlags;
@@ -286,16 +282,12 @@ class Xaction: public libecap::adapter::Xaction {
 /**
  * Determines if the response can be compressed or not
  */
-bool Adapter::Xaction::requirementsAreMet() {
-	if (!controlFlags.responseReject)
-		return false;
-	else if (!controlFlags.responseContentTypeOk)
-		return false;
-	else if (!controlFlags.requestAcceptEncodingOk)
-		return false;
-	else if (!controlFlags.requestContentXecapOk)
-		return false;
-	else if (!controlFlags.requestContentLenghtOk)
+inline bool Adapter::Xaction::requirementsAreMet() {
+	if (!controlFlags.responseReject ||
+		!controlFlags.responseContentTypeOk ||
+		!controlFlags.requestAcceptEncodingOk ||
+		!controlFlags.requestContentXecapOk ||
+		!controlFlags.requestContentLenghtOk)
 		return false;
 	else return true;
 }
@@ -469,28 +461,24 @@ void Adapter::Xaction::start() {
 		/* Return correct call gzip or deflate */
 	        if (acceptEncoding.size > 0) {
 			controlFlags.requestAcceptEncodingOk = true;
-			if (acceptEncoding.toString().find(c_EcapGzip) != std::string::npos) {
+			if (acceptEncoding.toString().find(c_EcapGzip) != std::string::npos)
 				controlFlags.requestAcceptEncodingGzip = true;
-		        } else if (acceptEncoding.toString().find(c_EcapDeflate) != std::string::npos) {
+		        else if (acceptEncoding.toString().find(c_EcapDeflate) != std::string::npos)
 				controlFlags.requestAcceptEncodingDeflate = true;
-		        }
 		}
 	}
 	/* Trying to have all the requirements on one control, so it does not go trough all if one fail */
-	if (hostx->cause().header().hasAny(teEncodingName))
-		controlFlags.responseReject = false;
-	else if (adapted->header().hasAny(libecap::headerTransferEncoding))
-		controlFlags.responseReject = false;
-	else if (adapted->header().hasAny(contentRangeName))
-		controlFlags.responseReject = false;
-	else if (adapted->header().hasAny(contentEncodingName))
-		controlFlags.responseReject = false;
-	else if (adapted->header().hasAny(cacheControlName) && adapted->header().value(cacheControlName).size > 0)
-		if (adapted->header().value(cacheControlName).toString().find("no-transform") != std::string::npos)
+	if (hostx->cause().header().hasAny(teEncodingName) ||
+		adapted->header().hasAny(libecap::headerTransferEncoding) ||
+		adapted->header().hasAny(contentRangeName) ||
+		adapted->header().hasAny(contentEncodingName) ||
+		((adapted->header().hasAny(cacheControlName) && adapted->header().value(cacheControlName).size > 0) &&
+		adapted->header().value(cacheControlName).toString().find("no-transform") != std::string::npos))
 			controlFlags.responseReject = false;
+
 	contentTypeString = contentType.toString();
 	if (adapted->header().hasAny(libecap::headerContentLength)) {
-		std::size_t v_ContentLength = atoi(adapted->header().value(libecap::headerContentLength).toString().c_str());
+		const std::size_t v_ContentLength = atoi(adapted->header().value(libecap::headerContentLength).toString().c_str());
 		if (v_ContentLength >= c_min_compression_file_size && v_ContentLength < service->v_MaxSize)
 			controlFlags.requestContentLenghtOk = true;
 		else
@@ -504,10 +492,10 @@ void Adapter::Xaction::start() {
 	/* Add a custom X-Ecap Header + value */
 	if (controlFlags.requestAcceptEncodingGzip) {
 		adapted->header().add(contentXecapName, XEcapDefgzipValue);
-		adapted->header().add(contentEncodingName, libecap::Area::FromTempString(c_EcapGzip));
+		adapted->header().add(contentEncodingName, XEcapDefgzipValue);
 	} else if (controlFlags.requestAcceptEncodingDeflate) {
 		adapted->header().add(contentXecapName, XEcapDefdeflateValue);
-		adapted->header().add(contentEncodingName, libecap::Area::FromTempString(c_EcapDeflate));
+		adapted->header().add(contentEncodingName, XEcapDefdeflateValue);
 	} else {
 		controlFlags.requestAcceptEncodingGzip = false;
 		controlFlags.requestAcceptEncodingDeflate = false;
@@ -523,9 +511,9 @@ void Adapter::Xaction::start() {
 	} else {
 		/* If all the requirements are met, then compress the obj else send Virgin headers */
 		if (requirementsAreMet()) {
-			if (gzipInitialize()) {
+			if (gzipInitialize())
 				hostx->useAdapted(adapted);
-			} else {
+			else {
 				ErrorLog(C_ERR_GZINIT_FAILED, service->v_ErrLog);
 				hostx->useVirgin();
 				abDiscard();
