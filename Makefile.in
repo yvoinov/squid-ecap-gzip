@@ -93,6 +93,7 @@ am__aclocal_m4_deps =  \
 	$(top_srcdir)/acinclude/ax_check_compile_flag.m4 \
 	$(top_srcdir)/acinclude/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/acinclude/ax_cxx_have_stl.m4 \
+	$(top_srcdir)/acinclude/ax_cxx_header_stdcxx_tr1.m4 \
 	$(top_srcdir)/acinclude/ax_cxx_namespaces.m4 \
 	$(top_srcdir)/acinclude/libtool.m4 \
 	$(top_srcdir)/acinclude/ltoptions.m4 \

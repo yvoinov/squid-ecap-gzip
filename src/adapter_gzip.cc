@@ -390,12 +390,10 @@ void Adapter::Service::start() {
 }
 
 void Adapter::Service::stop() {
-	/* Custom code would go here, but this service does not have one */
 	libecap::adapter::Service::stop();
 }
 
 void Adapter::Service::retire() {
-	/* Custom code would go here, but this service does not have one */
 	libecap::adapter::Service::stop();
 }
 

@@ -59,6 +59,7 @@ dnl Checks for programs
 AC_PROG_CXX([clang++ g++])
 AC_LANG([C++])
 AX_CXX_HAVE_STL
+AC_CXX_HEADER_STDCXX_TR1
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -72,6 +73,11 @@ fi
 dnl Check STL
 if test "x$ax_cv_cxx_have_stl" = "xno"; then
   AC_MSG_ERROR([STL was not found; it is require to build])
+fi
+
+dnl Check TR1
+if test "x$ax_cv_cxx_stdcxx_tr1" = "xno"; then
+  AC_MSG_ERROR([ISO C++ TR1 header files was not found; it is require to build])
 fi
 
 dnl If the user did not specify a C++ version.
