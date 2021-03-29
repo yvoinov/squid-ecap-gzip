@@ -6,3 +6,5 @@
 *.am linguist-detectable=false
 *.in linguist-detectable=false
 *.ac linguist-detectable=false
+*.guess linguist-detectable=false
+*.sub linguist-detectable=false
