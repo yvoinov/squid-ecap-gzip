@@ -11,3 +11,4 @@ text eol=lf
 *.ac linguist-detectable=false
 *.guess linguist-detectable=false
 *.sub linguist-detectable=false
+configure linguist-vendored
