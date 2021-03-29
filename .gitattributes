@@ -1,3 +1,6 @@
 *.cc linguist-detectable=true
 *.sh linguist-detectable=false
 *.m4 linguist-detectable=false
+*.am linguist-detectable=false
+*.in linguist-detectable=false
+*.ac linguist-detectable=false
