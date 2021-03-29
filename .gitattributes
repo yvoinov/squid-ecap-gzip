@@ -8,3 +8,5 @@
 *.ac linguist-detectable=false
 *.guess linguist-detectable=false
 *.sub linguist-detectable=false
+configure linguist-detectable=false
+
