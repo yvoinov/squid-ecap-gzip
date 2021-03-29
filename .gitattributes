@@ -1,14 +1,2 @@
 text eol=lf
-*.cpp linguist-detectable=true
-*.hpp linguist-detectable=true
-*.cc linguist-detectable=true
-*.h linguist-detectable=true
-*.h.in linguist-detectable=true
-*.sh linguist-detectable=false
-*.m4 linguist-detectable=false
-*.am linguist-detectable=false
-*.in linguist-detectable=false
-*.ac linguist-detectable=false
-*.guess linguist-detectable=false
-*.sub linguist-detectable=false
-configure linguist-vendored
+*.* linguist-language=CPP
