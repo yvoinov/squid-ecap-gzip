@@ -1,4 +1,6 @@
 *.cc linguist-detectable=true
+*.h linguist-detectable=true
+*.h.in linguist-detectable=true
 *.sh linguist-detectable=false
 *.m4 linguist-detectable=false
 *.am linguist-detectable=false
