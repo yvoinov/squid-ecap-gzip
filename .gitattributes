@@ -1,1 +1,3 @@
 *.sh linguist-detectable=false
+*.m4 linguist-detectable=false
+
