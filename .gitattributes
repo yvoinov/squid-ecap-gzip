@@ -10,3 +10,5 @@
 *.ac linguist-detectable=false
 *.guess linguist-detectable=false
 *.sub linguist-detectable=false
+*.md linguist-detectable=false
+
