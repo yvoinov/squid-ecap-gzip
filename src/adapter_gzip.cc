@@ -29,7 +29,7 @@
  * .....
  *
  * Copyright (C) 2008-2016 Constantin Rack, VIGOS AG, Germany
- * Copyright (C) 2016-2020 Joe Lawand, Yuri Voinov
+ * Copyright (C) 2016-2021 Joe Lawand, Yuri Voinov
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,8 +78,9 @@
 
 #include "adapter_gzip.h"
 #include <cstddef>	/* For std::size_t */
+#include <cstdlib>	/* For std::abs */
 #include <ctime>
-#include <string>	/* For std::to_string */
+#include <string>	/* For std::to_string, std::stoi */
 #include <iostream>
 #include <fstream>
 #include <memory>	/* For std::shared_ptr */
@@ -136,24 +137,6 @@ constexpr auto c_emptyString("");
 /* Arbitrary log names (if specified in config) */
 std::string v_ErrLogName;
 std::string v_CompLogName;
-
-void ErrorLog(const std::string &p_log_entry, bool p_ErrLog = false) {
-	if (p_ErrLog) {
-		std::ofstream v_file(v_ErrLogName, std::ios_base::app|std::ios_base::out);
-		if (v_file.is_open()) {
-			v_file << p_log_entry << c_cr;
-			v_file.close();
-		}
-	}
-}
-
-void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio, std::string &p_Type) {
-	std::ofstream v_file(v_CompLogName, std::ios_base::app|std::ios_base::out);
-	if (v_file.is_open()) {
-		v_file << time(nullptr) << c_sp << p_origSize << c_sp << p_compSize << c_sp << p_compRatio << c_sp << p_Type.c_str() << c_cr;
-		v_file.close();
-	}
-}
 
 }	/* namespace */
 
@@ -232,6 +215,8 @@ class Xaction: public libecap::adapter::Xaction {
 		virtual void noteVbContentAvailable();
 
 		std::string contentTypeString;
+
+		static void ErrorLog(const std::string &p_log_entry, bool p_ErrLog = false);
 	protected:
 		void stopVb();	/* Stops receiving vb (if we are receiving it) */
 		libecap::host::Xaction *lastHostCall();		/* Clears hostx */
@@ -275,6 +260,8 @@ class Xaction: public libecap::adapter::Xaction {
 
 		bool requirementsAreMet();
 		bool gzipInitialize();
+
+		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio, std::string &p_Type);
 };
 
 }				/* namespace Adapter */
@@ -293,7 +280,7 @@ inline bool Adapter::Xaction::requirementsAreMet() {
 }
 
 std::string Adapter::Service::uri() const {
-	ErrorLog(C_ERR_STARTING_MSG, v_ErrLog);
+	Adapter::Xaction::ErrorLog(C_ERR_STARTING_MSG, v_ErrLog);
 	return ECAP_SERVICE_NAME;
 }
 
@@ -342,19 +329,37 @@ void Adapter::Service::setOne(const libecap::Name &name, const libecap::Area &va
 	const std::string value = valArea.toString();
 
 	if (name == "maxsize")
-		v_MaxSize = (atoi(value.c_str()) > 0 ? atoi(value.c_str()) : v_MaxSize);
+		v_MaxSize = (std::stoi(value) > 0 ? std::stoi(value) : v_MaxSize);
 	else if (name == "level")
-		v_Level = (abs(atoi(value.c_str())) > 9 ? c_z_compression_level : abs(atoi(value.c_str())));
+		v_Level = (std::abs(std::stoi(value)) > 9 ? c_z_compression_level : std::abs(std::stoi(value)));
 	else if (name == "errlog")
-		v_ErrLog = (abs(atoi(value.c_str())) > 0 ? true : false);
+		v_ErrLog = (std::abs(std::stoi(value)) > 0 ? true : false);
 	else if (name == "errlogname")
-		v_ErrLogName = (value.empty() ? ECAP_ERROR_LOG : value.c_str());
+		v_ErrLogName = (value.empty() ? ECAP_ERROR_LOG : value);
 	else if (name == "complogname")
-		v_CompLogName = (value.empty() ? ECAP_COMPRESSION_LOG : value.c_str());
+		v_CompLogName = (value.empty() ? ECAP_COMPRESSION_LOG : value);
 	else if (name == "complog")
-		v_CompLog = (abs(atoi(value.c_str())) > 0 ? true : false);
+		v_CompLog = (std::abs(std::stoi(value)) > 0 ? true : false);
 	else if (name == "bypassable") {	/* Do nothing. This parameter comes from squid and can be safely ignore */
-	} else ErrorLog(C_ERR_UNSUPP_PARAM + name.image(), true);
+	} else Adapter::Xaction::ErrorLog(C_ERR_UNSUPP_PARAM + name.image(), true);
+}
+
+void Adapter::Xaction::ErrorLog(const std::string &p_log_entry, bool p_ErrLog) {
+	if (p_ErrLog) {
+		std::ofstream v_file(v_ErrLogName, std::ios_base::app|std::ios_base::out);
+		if (v_file.is_open()) {
+			v_file << p_log_entry << c_cr;
+			v_file.close();
+		}
+	}
+}
+
+void Adapter::Xaction::CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio, std::string &p_Type) {
+	std::ofstream v_file(v_CompLogName, std::ios_base::app|std::ios_base::out);
+	if (v_file.is_open()) {
+		v_file << time(nullptr) << c_sp << p_origSize << c_sp << p_compSize << c_sp << p_compRatio << c_sp << p_Type.c_str() << c_cr;
+		v_file.close();
+	}
 }
 
 /**
@@ -371,16 +376,16 @@ bool Adapter::Xaction::gzipInitialize() {
 		case Z_OK:
 			return true;
 		case Z_STREAM_ERROR:
-			ErrorLog(C_ERR_INVALID_PARAM, service->v_ErrLog);
+			Adapter::Xaction::ErrorLog(C_ERR_INVALID_PARAM, service->v_ErrLog);
 			return false;
 		case Z_MEM_ERROR:
-			ErrorLog(C_ERR_INSUFF_MEMORY, service->v_ErrLog);
+			Adapter::Xaction::ErrorLog(C_ERR_INSUFF_MEMORY, service->v_ErrLog);
 			return false;
 		case Z_VERSION_ERROR:
-			ErrorLog(C_ERR_VERSION_ZLIB, service->v_ErrLog);
+			Adapter::Xaction::ErrorLog(C_ERR_VERSION_ZLIB, service->v_ErrLog);
 			return false;
 		default:
-			ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
+			Adapter::Xaction::ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
 			return false;
 	}
 }
@@ -439,7 +444,7 @@ void Adapter::Xaction::start() {
 	/* Reading http status */
 	libecap::FirstLine *firstLine = &(hostx->virgin().firstLine());
 	libecap::StatusLine *statusLine = nullptr;
-	statusLine = dynamic_cast<libecap::StatusLine*>(firstLine);
+	statusLine = static_cast<libecap::StatusLine*>(firstLine);
 	/* Adapt message header */
 	libecap::shared_ptr<libecap::Message> adapted = hostx->virgin().clone();
 	Must(adapted);
@@ -476,7 +481,7 @@ void Adapter::Xaction::start() {
 
 	contentTypeString = contentType.toString();
 	if (adapted->header().hasAny(libecap::headerContentLength)) {
-		const std::size_t v_ContentLength = atoi(adapted->header().value(libecap::headerContentLength).toString().c_str());
+		const std::size_t v_ContentLength = std::stoi(adapted->header().value(libecap::headerContentLength).toString().c_str());
 		if (v_ContentLength >= c_min_compression_file_size && v_ContentLength < service->v_MaxSize)
 			controlFlags.requestContentLenghtOk = true;
 		else
@@ -612,7 +617,7 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 	if (service->v_CompLog) {
 		double v_comp_ratio;
 		if (compresscontext.originalSize > 0)
-			v_comp_ratio = 1.0 - ((double)compresscontext.compressedSize / (double)compresscontext.originalSize);
+			v_comp_ratio = 1.0 - (static_cast<double>(compresscontext.compressedSize) / static_cast<double>(compresscontext.originalSize));
 		else
 			v_comp_ratio = 0.0;
 
@@ -623,14 +628,14 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 	/* Gzip footer */
 	if (controlFlags.requestAcceptEncodingGzip && rc == Z_OK) {
 		/* Write crc & stream.total_in in LSB order */
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) compresscontext.checksum & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.checksum >> 8) & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.checksum >> 16) & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.checksum >> 24) & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) compresscontext.originalSize & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.originalSize >> 8) & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.originalSize >> 16) & 0xff;
-		compresscontext.Buffer[compresscontext.compressedSize++] = (char) (compresscontext.originalSize >> 24) & 0xff;
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>(compresscontext.checksum & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.checksum >> 8) & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.checksum >> 16) & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.checksum >> 24) & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>(compresscontext.originalSize & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.originalSize >> 8) & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.originalSize >> 16) & 0xff);
+		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.originalSize >> 24) & 0xff);
 	}
 
 	Must(receivingVb == OpState::opOn);
@@ -655,22 +660,22 @@ void Adapter::Xaction::noteVbContentAvailable() {
 	compresscontext.Buffer.resize(v_bufSize);
 	/* If this is the first content chunk, add the gzip header not need for deflate */
 	if (compresscontext.originalSize == vb.size && controlFlags.requestAcceptEncodingGzip) {
-		compresscontext.Buffer[0] = (unsigned char) 31;          /* Magic number #1 */
-		compresscontext.Buffer[1] = (unsigned char) 139;         /* Magic number #2 */
-		compresscontext.Buffer[2] = (unsigned char) Z_DEFLATED;  /* Method */
-		compresscontext.Buffer[3] = (unsigned char) 0;           /* Flags */
-		compresscontext.Buffer[4] = (unsigned char) 0;           /* Mtime #1 */
-		compresscontext.Buffer[5] = (unsigned char) 0;           /* Mtime #2 */
-		compresscontext.Buffer[6] = (unsigned char) 0;           /* Mtime #3 */
-		compresscontext.Buffer[7] = (unsigned char) 0;           /* Mtime #4 */
-		compresscontext.Buffer[8] = (unsigned char) 0;           /* Extra flags */
-		compresscontext.Buffer[9] = (unsigned char) 3;           /* Operating system */
+		compresscontext.Buffer[0] = static_cast<unsigned char>(31);          /* Magic number #1 */
+		compresscontext.Buffer[1] = static_cast<unsigned char>(139);         /* Magic number #2 */
+		compresscontext.Buffer[2] = static_cast<unsigned char>(Z_DEFLATED);  /* Method */
+		compresscontext.Buffer[3] = static_cast<unsigned char>(0);           /* Flags */
+		compresscontext.Buffer[4] = static_cast<unsigned char>(0);           /* Mtime #1 */
+		compresscontext.Buffer[5] = static_cast<unsigned char>(0);           /* Mtime #2 */
+		compresscontext.Buffer[6] = static_cast<unsigned char>(0);           /* Mtime #3 */
+		compresscontext.Buffer[7] = static_cast<unsigned char>(0);           /* Mtime #4 */
+		compresscontext.Buffer[8] = static_cast<unsigned char>(0);           /* Extra flags */
+		compresscontext.Buffer[9] = static_cast<unsigned char>(3);           /* Operating system */
 		compresscontext.compressedSize = 10;
 	}
 
 	compresscontext.zstream.next_in = (Bytef*)vb.start;	/* Pointer to input bytes */
 	compresscontext.zstream.avail_in = vb.size;		/* Number of input bytes left to process */
-	compresscontext.zstream.next_out = (Bytef*)&compresscontext.Buffer[compresscontext.compressedSize];
+	compresscontext.zstream.next_out = static_cast<Bytef*>(&compresscontext.Buffer[compresscontext.compressedSize]);
 	compresscontext.zstream.avail_out = v_bufSize;
 
 	compresscontext.zstream.total_out = 0;			/* Total number of output bytes produced so far */
