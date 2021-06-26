@@ -242,9 +242,7 @@ class Xaction: public libecap::adapter::Xaction {
 				zstream.zfree = Z_NULL;
 				zstream.opaque = Z_NULL;
 			}
-		};
-
-		CompressContext compresscontext;
+		} compresscontext;
 
 		struct Controls {
 			bool responseReject;
@@ -254,9 +252,7 @@ class Xaction: public libecap::adapter::Xaction {
 			bool requestContentXecapOk;
 			bool requestAcceptEncodingGzip;
 			bool requestAcceptEncodingDeflate;
-		};
-
-		Controls controlFlags;
+		} controlFlags;
 
 		bool requirementsAreMet();
 		bool gzipInitialize();
@@ -376,16 +372,16 @@ bool Adapter::Xaction::gzipInitialize() {
 		case Z_OK:
 			return true;
 		case Z_STREAM_ERROR:
-			Adapter::Xaction::ErrorLog(C_ERR_INVALID_PARAM, service->v_ErrLog);
+			ErrorLog(C_ERR_INVALID_PARAM, service->v_ErrLog);
 			return false;
 		case Z_MEM_ERROR:
-			Adapter::Xaction::ErrorLog(C_ERR_INSUFF_MEMORY, service->v_ErrLog);
+			ErrorLog(C_ERR_INSUFF_MEMORY, service->v_ErrLog);
 			return false;
 		case Z_VERSION_ERROR:
-			Adapter::Xaction::ErrorLog(C_ERR_VERSION_ZLIB, service->v_ErrLog);
+			ErrorLog(C_ERR_VERSION_ZLIB, service->v_ErrLog);
 			return false;
 		default:
-			Adapter::Xaction::ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
+			ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
 			return false;
 	}
 }
@@ -572,7 +568,7 @@ libecap::Area Adapter::Xaction::abContent(size_type offset, size_type size) {
 	offset = compresscontext.sendingOffset + offset;
 	size = compresscontext.compressedSize - offset;
 	/* Compressed data need to be send */
-	return libecap::Area::FromTempBuffer((const char*)&compresscontext.Buffer[offset], size);
+	return libecap::Area::FromTempBuffer(reinterpret_cast<const char*>(&compresscontext.Buffer[offset]), size);
 }
 
 void Adapter::Xaction::abContentShift(size_type size) {

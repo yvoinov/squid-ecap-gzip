@@ -8,17 +8,18 @@
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
 m4_define([VERSION_MICRO],[0])
-m4_define([VERSION_PATCH],[7])
+m4_define([VERSION_PATCH],[8])
 AC_INIT(eCAP GZIP DEFLATE Adapter, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]).m4_defn([VERSION_PATCH]), [], squid-ecap-gzip)
 
 LIBADAPTER_CURRENT=6
-LIBADAPTER_REVISION=2
+LIBADAPTER_REVISION=3
 LIBADAPTER_AGE=1
 
 # 1.6.0.3 had 6:0:1
 # 1.6.0.4 had 6:0:1
 # 1.6.0.5 had 6:1:1
 # 1.6.0.7 had 6:2:1
+# 1.6.0.8 had 6:3:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary

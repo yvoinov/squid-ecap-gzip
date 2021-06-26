@@ -1,6 +1,6 @@
 /* (C) 2008  The Measurement Factory */
 /* (C) 2008-2016 Constantin Rack */
-/* (C) 2016-2020  Joe Lavand, Yuri Voinov */
+/* (C) 2016-2021  Joe Lavand, Yuri Voinov */
 
 #ifndef ECAP_ADAPTER_DEFINES_H
 #define ECAP_ADAPTER_DEFINES_H
