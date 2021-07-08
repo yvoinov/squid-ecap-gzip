@@ -1,3 +1,4 @@
+# Squid eCAP GZIP/DEFLATE adapter
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/yvoinov/squid-ecap-gzip/blob/master/LICENSE)
 
 This Software is an eCAP adapter for HTTP compression with GZIP and DEFLATE.
