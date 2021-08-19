@@ -112,7 +112,7 @@ const libecap::Name teEncodingName("TE");
 const libecap::Name cacheControlName("Cache-Control");
 /* Do not compress if response has a content-range header and status code "206 Partial content" */
 const libecap::Name contentRangeName("Content-Range");
-/* Checks the Content-Encoding response header. If this header is present, we must not compress the respone */
+/* Checks the Content-Encoding response header. If this header is present, we must not compress the response */
 const libecap::Name contentEncodingName("Content-Encoding");
 /* Checks the Content-Type response header. At this time, only responses are allowed to be compressed */
 const libecap::Name contentTypeName("Content-Type");
