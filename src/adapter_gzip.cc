@@ -678,7 +678,7 @@ void Adapter::Xaction::noteVbContentAvailable() {
 
 	auto rc = deflate(&compresscontext.zstream, Z_SYNC_FLUSH);
 	if (rc == Z_OK && controlFlags.requestAcceptEncodingGzip)	/* Calculate CRC32 for GZIP footer no need for deflate */
-		compresscontext.checksum = crc32(compresscontext.checksum, (Bytef*)vb.start, vb.size);
+		compresscontext.checksum = crc32(compresscontext.checksum, compresscontext.zstream.next_in, vb.size);
 
 	compresscontext.compressedSize += compresscontext.zstream.total_out;
 
