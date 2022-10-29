@@ -29,7 +29,7 @@
  * .....
  *
  * Copyright (C) 2008-2016 Constantin Rack, VIGOS AG, Germany
- * Copyright (C) 2016-2021 Joe Lawand, Yuri Voinov
+ * Copyright (C) 2016-2022 Joe Lawand, Yuri Voinov
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,7 @@ const libecap::Name teEncodingName("TE");
 const libecap::Name cacheControlName("Cache-Control");
 /* Do not compress if response has a content-range header and status code "206 Partial content" */
 const libecap::Name contentRangeName("Content-Range");
-/* Checks the Content-Encoding response header. If this header is present, we must not compress the response */
+/* Checks the Content-Encoding response header. If this header is present, we must not compress the respone */
 const libecap::Name contentEncodingName("Content-Encoding");
 /* Checks the Content-Type response header. At this time, only responses are allowed to be compressed */
 const libecap::Name contentTypeName("Content-Type");
@@ -669,7 +669,8 @@ void Adapter::Xaction::noteVbContentAvailable() {
 		compresscontext.compressedSize = 10;
 	}
 
-	compresscontext.zstream.next_in = (Bytef*)vb.start;	/* Pointer to input bytes */
+	/* Here is cast away constness from pointer vb.start; we're avoid use of C-cast */
+	compresscontext.zstream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(vb.start));	/* Pointer to input bytes */
 	compresscontext.zstream.avail_in = vb.size;		/* Number of input bytes left to process */
 	compresscontext.zstream.next_out = static_cast<Bytef*>(&compresscontext.Buffer[compresscontext.compressedSize]);
 	compresscontext.zstream.avail_out = v_bufSize;
