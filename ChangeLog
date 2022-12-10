@@ -52,16 +52,20 @@ Version 1.6.0.2 (2019-06-27)
 * IMPROVEMENT: Removed unused code. By Yuri Voinov.
 * FIX: Bug in ltmsize(). By Yuri Voinov.
 
-Version 1.6.0.3 (2021-08-19)
+Version 1.6.0.3 (2022-12-10)
 * FIX: Build with ltalloc on *BSD. By Yuri Voinov.
 * IMPROVEMENT: Added automatic LTO (GCC only) support. By Yuri Voinov.
 * IMPROVEMENT: Added libecap version check. In some cases require to set/modify PKG_CONFIG_PATH. By Yuri Voinov.
 * IMPROVEMENT: Added workaround to detect egrep on some platforms. By Yuri Voinov.
 * IMPROVEMENT: Updated ltalloc. By Yuri Voinov.
-* IMPROVEMENT: Addded -funroll-loops when build with ltalloc.
+* IMPROVEMENT: Added -funroll-loops when build with ltalloc.
 * IMPROVEMENT: Refactoring - moved log functions to class, replaced most C-casts, minor improvements. By Yuri Voinov.
 * IMPROVEMENT: More refactoring. By Yuri Voinov.
+* IMPROVEMENT: Avoid use of C-cast in Adapter::Xaction::noteVbContentAvailable(). By Yuri Voinov.
+* IMPROVEMENT: Added std::make_unique for C++14.
+* IMPROVEMENT: TR1 detection added. By Yuri Voinov.
 * FIX: Typo. By Yuri Voinov.
+* FIX: Old typo. By Yuri Voinov.
 
 Version 1.6.0.4 (2020-01-15)
 * IMPROVEMENT: Refactoring. Replaced unique_ptr[] to std::vector. By Yuri Voinov.
@@ -79,5 +83,6 @@ Version 1.6.0.8 (2021-08-19)
 * IMPROVEMENT: More refactoring. By Yuri Voinov.
 * FIX: Typo. By Yuri Voinov.
 
-Version 1.6.0.9 (2022-10-29)
+Version 1.6.0.9 (2022-12-10)
 * IMPROVEMENT: Avoid use of C-cast in Adapter::Xaction::noteVbContentAvailable(). By Yuri Voinov.
+* FIX: Old typo. By Yuri Voinov.
