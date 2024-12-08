@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 #  @configure_input@
 #
-#  Configuration scipt for eCAP GZip/DEFLATE Library
+#  Configuration script for eCAP GZip/DEFLATE Library
 #
 # Process this file with autoconf to produce a configure script.
 
