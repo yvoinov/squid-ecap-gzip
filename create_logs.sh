@@ -5,7 +5,7 @@
 # Adjust variables by your requirements
 # in according with adapter_gzip.h
 #
-# Y.Voinov (C) 2016-2019
+# Y.Voinov (C) 2016-2025
 #
 
 LOG_PREFIX="/var/log"
