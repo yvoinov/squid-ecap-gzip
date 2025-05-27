@@ -29,7 +29,7 @@
  * .....
  *
  * Copyright (C) 2008-2016 Constantin Rack, VIGOS AG, Germany
- * Copyright (C) 2016-2022 Joe Lawand, Yuri Voinov
+ * Copyright (C) 2016-2025 Joe Lawand, Yuri Voinov
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -231,17 +231,14 @@ class Xaction: public libecap::adapter::Xaction {
 		struct CompressContext {
 			z_stream zstream;
 			std::vector<unsigned char> Buffer;
-			unsigned long checksum;
+			std::size_t checksum;
 			std::size_t originalSize;
 			std::size_t compressedSize;
 			std::size_t sendingOffset;
 			std::size_t lastChunkSize;
 
-			CompressContext() : checksum(crc32(0L, Z_NULL, 0)), originalSize(0), compressedSize(0), sendingOffset(0), lastChunkSize(0) {
-				zstream.zalloc = Z_NULL;
-				zstream.zfree = Z_NULL;
-				zstream.opaque = Z_NULL;
-			}
+			CompressContext() : zstream({ Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL, Z_NULL }),
+				checksum(crc32(0L, Z_NULL, 0)), originalSize(0), compressedSize(0), sendingOffset(0), lastChunkSize(0) {}
 		} compresscontext;
 
 		struct Controls {
@@ -313,6 +310,7 @@ void Adapter::Service::configure(const libecap::Options &cfg) {
 }
 
 void Adapter::Service::reconfigure(const libecap::Options &cfg) {
+	static_cast<void>(cfg);
 	v_MaxSize = c_max_compression_file_size;
 	v_Level = c_z_compression_level;
 	v_ErrLogName = ECAP_ERROR_LOG;
@@ -399,6 +397,7 @@ void Adapter::Service::retire() {
 }
 
 bool Adapter::Service::wantsUrl(const char *url) const {
+	static_cast<void>(url);
 	return true;			/* No-op is applied to all messages */
 }
 
