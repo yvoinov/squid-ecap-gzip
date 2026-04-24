@@ -8,12 +8,12 @@
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
 m4_define([VERSION_MICRO],[0])
-m4_define([VERSION_PATCH],[9])
+m4_define([VERSION_PATCH],[10])
 
 AC_INIT(squid-ecap-gzip, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]).m4_defn([VERSION_PATCH]), [], squid-ecap-gzip)
 
 LIBADAPTER_CURRENT=6
-LIBADAPTER_REVISION=4
+LIBADAPTER_REVISION=5
 LIBADAPTER_AGE=1
 
 # 1.6.0.3 had 6:0:1
@@ -22,6 +22,7 @@ LIBADAPTER_AGE=1
 # 1.6.0.7 had 6:2:1
 # 1.6.0.8 had 6:3:1
 # 1.6.0.9 had 6:4:1
+# 1.6.0.10 had 6:5:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
