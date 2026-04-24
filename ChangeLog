@@ -93,3 +93,6 @@ Version 1.6.0.9 (10-16-2025)
 * IMPROVEMENT: configure.ac. By Yuri Voinov.
 * FIX: Typo in configure.ac. By Yuri Voinov.
 * FIX: Removed TR1 detection due to wrong behaviour on fresh compilers. By Yuri Voinov.
+
+Version 1.6.1.0 (04-24-2026)
+* FIX: noteVbContentAvailable() realloc-like semantic. By Yuri Voinov.
