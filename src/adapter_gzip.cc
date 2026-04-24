@@ -29,7 +29,7 @@
  * .....
  *
  * Copyright (C) 2008-2016 Constantin Rack, VIGOS AG, Germany
- * Copyright (C) 2016-2025 Joe Lawand, Yuri Voinov
+ * Copyright (C) 2016-2026 Joe Lawand, Yuri Voinov
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,8 @@ const libecap::Header::Value XEcapDefgzipValue = libecap::Area::FromTempString(c
 const libecap::Header::Value XEcapDefdeflateValue = libecap::Area::FromTempString(c_EcapDeflate);
 
 const libecap::Header::Value varyValue = libecap::Area::FromTempString("Accept-Encoding");
+
+static constexpr std::size_t ZLIB_OVERHEAD = 64;
 
 constexpr auto c_sp = " ";
 constexpr auto c_cr = "\n";
@@ -649,10 +651,11 @@ void Adapter::Xaction::noteVbContentAvailable() {
 	compresscontext.originalSize += vb.size;			/* Calculate original byte size for GZIP footer */
 	compresscontext.lastChunkSize = vb.size;			/* Store chunk size for contentShift() */
 
-	std::size_t v_bufSize = 12 + compresscontext.originalSize*1.01;	/* Buffers size by Zlib */
+	std::size_t v_bufSize =	compresscontext.compressedSize + vb.size + ZLIB_OVERHEAD;/* Buffers size by Zlib */
 
-	/* Allocate the Buffer and initialize it */
-	compresscontext.Buffer.resize(v_bufSize);
+	/* Allocate the Buffer and initialize it (realloc-like behavior) */
+	if (compresscontext.Buffer.size() < v_bufSize) compresscontext.Buffer.resize(v_bufSize);
+
 	/* If this is the first content chunk, add the gzip header not need for deflate */
 	if (compresscontext.originalSize == vb.size && controlFlags.requestAcceptEncodingGzip) {
 		compresscontext.Buffer[0] = static_cast<unsigned char>(31);          /* Magic number #1 */
@@ -671,10 +674,12 @@ void Adapter::Xaction::noteVbContentAvailable() {
 	/* Here is cast away constness from pointer vb.start; we're avoid use of C-cast */
 	compresscontext.zstream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(vb.start));	/* Pointer to input bytes */
 	compresscontext.zstream.avail_in = vb.size;		/* Number of input bytes left to process */
-	compresscontext.zstream.next_out = static_cast<Bytef*>(&compresscontext.Buffer[compresscontext.compressedSize]);
-	compresscontext.zstream.avail_out = v_bufSize;
 
-	compresscontext.zstream.total_out = 0;			/* Total number of output bytes produced so far */
+	auto* base = compresscontext.Buffer.data();
+	compresscontext.zstream.next_out = reinterpret_cast<Bytef*>(base + compresscontext.compressedSize);
+	compresscontext.zstream.avail_out = static_cast<uInt>(v_bufSize - compresscontext.compressedSize);
+
+	compresscontext.zstream.total_out = 0;				/* Total number of output bytes produced so far */
 
 	auto rc = deflate(&compresscontext.zstream, Z_SYNC_FLUSH);
 	if (rc == Z_OK && controlFlags.requestAcceptEncodingGzip)	/* Calculate CRC32 for GZIP footer no need for deflate */
