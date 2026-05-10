@@ -651,7 +651,7 @@ void Adapter::Xaction::noteVbContentAvailable() {
 	compresscontext.originalSize += vb.size;			/* Calculate original byte size for GZIP footer */
 	compresscontext.lastChunkSize = vb.size;			/* Store chunk size for contentShift() */
 
-	std::size_t v_bufSize =	compresscontext.compressedSize + vb.size + ZLIB_OVERHEAD;/* Buffers size by Zlib */
+	std::size_t v_bufSize = compresscontext.originalSize * 1.01 + ZLIB_OVERHEAD;	/* Buffers size by Zlib */
 
 	/* Allocate the Buffer and initialize it (realloc-like behavior) */
 	if (compresscontext.Buffer.size() < v_bufSize) compresscontext.Buffer.resize(v_bufSize);
