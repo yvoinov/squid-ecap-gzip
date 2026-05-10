@@ -96,3 +96,6 @@ Version 1.6.0.9 (10-16-2025)
 
 Version 1.6.0.10 (04-26-2026)
 * FIX: noteVbContentAvailable() realloc-like semantic. By Yuri Voinov.
+
+Version 1.6.0.10 (05-10-2026)
+* FIX: crc32 error. By Yuri Voinov.
