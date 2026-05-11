@@ -99,3 +99,6 @@ Version 1.6.0.10 (04-26-2026)
 
 Version 1.6.0.10 (05-10-2026)
 * FIX: crc32 error. By Yuri Voinov.
+
+Version 1.6.0.10 (05-11-2026)
+* FIX: typo. By Yuri Voinov.
