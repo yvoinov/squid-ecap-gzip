@@ -247,7 +247,7 @@ class Xaction: public libecap::adapter::Xaction {
 			bool responseReject;
 			bool responseContentTypeOk;
 			bool requestAcceptEncodingOk;
-			bool requestContentLenghtOk;
+			bool requestContentLengthOk;
 			bool requestContentXecapOk;
 			bool requestAcceptEncodingGzip;
 			bool requestAcceptEncodingDeflate;
@@ -269,7 +269,7 @@ inline bool Adapter::Xaction::requirementsAreMet() {
 		!controlFlags.responseContentTypeOk ||
 		!controlFlags.requestAcceptEncodingOk ||
 		!controlFlags.requestContentXecapOk ||
-		!controlFlags.requestContentLenghtOk)
+		!controlFlags.requestContentLengthOk)
 		return false;
 	else return true;
 }
@@ -480,9 +480,9 @@ void Adapter::Xaction::start() {
 	if (adapted->header().hasAny(libecap::headerContentLength)) {
 		const std::size_t v_ContentLength = std::stoi(adapted->header().value(libecap::headerContentLength).toString().c_str());
 		if (v_ContentLength >= c_min_compression_file_size && v_ContentLength < service->v_MaxSize)
-			controlFlags.requestContentLenghtOk = true;
+			controlFlags.requestContentLengthOk = true;
 		else
-			controlFlags.requestContentLenghtOk = false;
+			controlFlags.requestContentLengthOk = false;
 	}
 	/* Add extra response header if Content-Type is OK delete ContentLength header; */
 	/* unknown length may have performance implications for the host */
@@ -679,7 +679,7 @@ void Adapter::Xaction::noteVbContentAvailable() {
 	compresscontext.zstream.next_out = reinterpret_cast<Bytef*>(base + compresscontext.compressedSize);
 	compresscontext.zstream.avail_out = static_cast<uInt>(v_bufSize - compresscontext.compressedSize);
 
-	compresscontext.zstream.total_out = 0;				/* Total number of output bytes produced so far */
+	compresscontext.zstream.total_out = 0;			/* Total number of output bytes produced so far */
 
 	auto rc = deflate(&compresscontext.zstream, Z_SYNC_FLUSH);
 	if (rc == Z_OK && controlFlags.requestAcceptEncodingGzip)	/* Calculate CRC32 for GZIP footer no need for deflate */
