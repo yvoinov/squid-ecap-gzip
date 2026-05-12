@@ -102,3 +102,7 @@ Version 1.6.0.10 (05-10-2026)
 
 Version 1.6.0.10 (05-11-2026)
 * FIX: typo. By Yuri Voinov.
+
+Version 1.6.0.10 (05-11-2026)
+* FIX: Changing the crc32 call to the invariant form by source chunk. By Yuri Voinov.
+* IMPROVEMENT: Added compression type to compression log. By Yuri Voinov.
