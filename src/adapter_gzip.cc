@@ -256,7 +256,8 @@ class Xaction: public libecap::adapter::Xaction {
 		bool requirementsAreMet();
 		bool gzipInitialize();
 
-		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio, std::string &p_Type);
+		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
+					const std::string &p_Type, const std::string &p_compType = c_EcapDeflate);
 };
 
 }				/* namespace Adapter */
@@ -350,10 +351,12 @@ void Adapter::Xaction::ErrorLog(const std::string &p_log_entry, bool p_ErrLog) {
 	}
 }
 
-void Adapter::Xaction::CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio, std::string &p_Type) {
+void Adapter::Xaction::CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
+					const std::string &p_Type, const std::string &p_compType) {
 	std::ofstream v_file(v_CompLogName, std::ios_base::app|std::ios_base::out);
 	if (v_file.is_open()) {
-		v_file << time(nullptr) << c_sp << p_origSize << c_sp << p_compSize << c_sp << p_compRatio << c_sp << p_Type.c_str() << c_cr;
+		v_file << time(nullptr) << c_sp << p_origSize << c_sp << p_compSize << c_sp << p_compRatio << c_sp << p_Type
+			<< c_sp << p_compType << c_cr;
 		v_file.close();
 	}
 }
@@ -618,8 +621,12 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 		else
 			v_comp_ratio = 0.0;
 
-		if (v_comp_ratio > 0.0)
-			CompressionLog(compresscontext.originalSize, compresscontext.compressedSize, v_comp_ratio, std::ref(contentTypeString));
+		if (v_comp_ratio > 0.0) {
+			if (controlFlags.requestAcceptEncodingGzip)
+				CompressionLog(compresscontext.originalSize, compresscontext.compressedSize, v_comp_ratio, std::ref(contentTypeString), c_EcapGzip);
+			else
+				CompressionLog(compresscontext.originalSize, compresscontext.compressedSize, v_comp_ratio, std::ref(contentTypeString));
+		}
 	}
 
 	/* Gzip footer */
@@ -683,7 +690,7 @@ void Adapter::Xaction::noteVbContentAvailable() {
 
 	auto rc = deflate(&compresscontext.zstream, Z_SYNC_FLUSH);
 	if (rc == Z_OK && controlFlags.requestAcceptEncodingGzip)	/* Calculate CRC32 for GZIP footer no need for deflate */
-		compresscontext.checksum = crc32(compresscontext.checksum, compresscontext.zstream.next_in, vb.size);
+		compresscontext.checksum = crc32(compresscontext.checksum, reinterpret_cast<const Bytef*>(vb.start), static_cast<uInt>(vb.size));
 
 	compresscontext.compressedSize += compresscontext.zstream.total_out;
 
