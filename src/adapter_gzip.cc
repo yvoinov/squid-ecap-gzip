@@ -584,7 +584,7 @@ void Adapter::Xaction::abContentShift(size_type size) {
 void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 	compresscontext.zstream.total_out = 0;
 
-	auto rc = deflate(&compresscontext.zstream,  Z_FINISH);
+	auto rc = deflate(&compresscontext.zstream, Z_FINISH);
 	if (rc != Z_STREAM_END) {
 		switch (rc) {
 		case Z_ERRNO:
@@ -609,9 +609,11 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 			ErrorLog(C_ERR_UNKNOWN_2 + std::to_string(rc), service->v_ErrLog);
 			break;
 		}
+		deflateEnd(&compresscontext.zstream);
+		goto end;
 	}
 
-	rc = deflateEnd(&compresscontext.zstream);
+	deflateEnd(&compresscontext.zstream);
 	compresscontext.compressedSize += compresscontext.zstream.total_out;
 
 	if (service->v_CompLog) {
@@ -642,6 +644,7 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
 		compresscontext.Buffer[compresscontext.compressedSize++] = static_cast<char>((compresscontext.originalSize >> 24) & 0xff);
 	}
 
+	end:
 	Must(receivingVb == OpState::opOn);
 	receivingVb = OpState::opComplete;
 	if (sendingAb == OpState::opOn) {

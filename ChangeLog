@@ -106,3 +106,4 @@ Version 1.6.0.10 (05-11-2026)
 Version 1.6.0.10 (05-11-2026)
 * FIX: Changing the crc32 call to the invariant form by source chunk. By Yuri Voinov.
 * IMPROVEMENT: Added compression type to compression log. By Yuri Voinov.
+* FIX: ERROR: noteVbContentDone() deflate() - The stream state was inconsistent (e.g., next_in or next_out was NULL). By Yuri Voinov.
