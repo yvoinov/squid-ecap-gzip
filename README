@@ -83,7 +83,6 @@ acl.gzipmimes contents:
 ^application/xml
 ^application/x-yaml
 ^application/x-cdf
-^application/txt
 ^application/x-sdch-dictionary
 ^application/x-steam-manifest
 ^audio/x-mpegurl
