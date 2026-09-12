@@ -244,13 +244,13 @@ class Xaction: public libecap::adapter::Xaction {
 		} compresscontext;
 
 		struct Controls {
-			bool responseReject;
-			bool responseContentTypeOk;
-			bool requestAcceptEncodingOk;
-			bool requestContentLengthOk;
-			bool requestContentXecapOk;
-			bool requestAcceptEncodingGzip;
-			bool requestAcceptEncodingDeflate;
+			bool responseReject = true;
+			bool responseContentTypeOk = false;
+			bool requestAcceptEncodingOk = false;
+			bool requestContentLengthOk = false;
+			bool requestContentXecapOk = true;
+			bool requestAcceptEncodingGzip = false;
+			bool requestAcceptEncodingDeflate = false;
 		} controlFlags;
 
 		bool requirementsAreMet();
@@ -519,10 +519,14 @@ void Adapter::Xaction::start() {
 			else {
 				ErrorLog(C_ERR_GZINIT_FAILED, service->v_ErrLog);
 				hostx->useVirgin();
+				if (receivingVb == OpState::opOn)
+					receivingVb = OpState::opComplete;
 				abDiscard();
 			}
 		} else {
 			hostx->useVirgin();
+			if (receivingVb == OpState::opOn)
+				receivingVb = OpState::opComplete;
 			abDiscard();
 		}
 	}
