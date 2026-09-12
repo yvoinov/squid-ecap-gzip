@@ -244,13 +244,22 @@ class Xaction: public libecap::adapter::Xaction {
 		} compresscontext;
 
 		struct Controls {
-			bool responseReject = true;
-			bool responseContentTypeOk = false;
-			bool requestAcceptEncodingOk = false;
-			bool requestContentLengthOk = false;
-			bool requestContentXecapOk = true;
-			bool requestAcceptEncodingGzip = false;
-			bool requestAcceptEncodingDeflate = false;
+			bool responseReject;
+			bool responseContentTypeOk;
+			bool requestAcceptEncodingOk;
+			bool requestContentLengthOk;
+			bool requestContentXecapOk;
+			bool requestAcceptEncodingGzip;
+			bool requestAcceptEncodingDeflate;
+
+			Controls() :
+				responseReject(true),
+				responseContentTypeOk(false),
+				requestAcceptEncodingOk(false),
+				requestContentLengthOk(false),
+				requestContentXecapOk(true),
+				requestAcceptEncodingGzip(false),
+				requestAcceptEncodingDeflate(false) {}
 		} controlFlags;
 
 		bool requirementsAreMet();
