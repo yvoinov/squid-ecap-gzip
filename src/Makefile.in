@@ -110,7 +110,7 @@ DIST_COMMON = $(srcdir)/Makefile.am $(noinst_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = autoconf.h
-CONFIG_CLEAN_FILES = adapter_gzip.h
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -141,7 +141,7 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 ecap_adapter_gzip_la_DEPENDENCIES =
-am_ecap_adapter_gzip_la_OBJECTS = adapter_gzip.lo
+am_ecap_adapter_gzip_la_OBJECTS = adapter_gzip_async.lo
 ecap_adapter_gzip_la_OBJECTS = $(am_ecap_adapter_gzip_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -166,7 +166,7 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/cfgaux/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/adapter_gzip.Plo
+am__depfiles_remade = ./$(DEPDIR)/adapter_gzip_async.Plo
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
@@ -186,6 +186,24 @@ AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
 am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
 am__v_CXXLD_0 = @echo "  CXXLD   " $@;
 am__v_CXXLD_1 = 
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 = 
+CCLD = $(CC)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 = 
 SOURCES = $(ecap_adapter_gzip_la_SOURCES)
 DIST_SOURCES = $(ecap_adapter_gzip_la_SOURCES)
 am__can_run_installinfo = \
@@ -212,8 +230,8 @@ am__define_uniq_tagged_files = \
   unique=`for i in $$list; do \
     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
   done | $(am__uniquify_input)`
-am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/adapter_gzip.h.in \
-	$(srcdir)/autoconf.h.in $(top_srcdir)/cfgaux/depcomp
+am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/autoconf.h.in \
+	$(top_srcdir)/cfgaux/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -350,21 +368,19 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = \
-	adapter_gzip.cc
+	adapter_gzip_async.cc
 
 lib_LTLIBRARIES = \
 	ecap_adapter_gzip.la
 
 noinst_HEADERS = \
-	adapter_gzip.h \
 	autoconf.h 
 
-ecap_adapter_gzip_la_SOURCES = adapter_gzip.cc
+ecap_adapter_gzip_la_SOURCES = adapter_gzip_async.h adapter_gzip_async.cc
 ecap_adapter_gzip_la_LDFLAGS = -module -version-info @LIBADAPTER_CURRENT@:@LIBADAPTER_REVISION@:@LIBADAPTER_AGE@
 ecap_adapter_gzip_la_LIBADD = -lecap -lz
 DISTCLEANFILES = \
         autoconf.h \
-	adapter_gzip.h \
 	Makefile
 
 AM_CPPFLAGS = -I$(top_srcdir)/src
@@ -417,8 +433,6 @@ $(srcdir)/autoconf.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f autoconf.h stamp-h1
-adapter_gzip.h: $(top_builddir)/config.status $(srcdir)/adapter_gzip.h.in
-	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
 install-libLTLIBRARIES: $(lib_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
@@ -462,7 +476,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/adapter_gzip.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/adapter_gzip_async.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -629,7 +643,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-	-rm -f ./$(DEPDIR)/adapter_gzip.Plo
+	-rm -f ./$(DEPDIR)/adapter_gzip_async.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -675,7 +689,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -f ./$(DEPDIR)/adapter_gzip.Plo
+	-rm -f ./$(DEPDIR)/adapter_gzip_async.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

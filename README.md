@@ -2,7 +2,7 @@ This Software is an eCAP adapter for HTTP compression with GZIP and DEFLATE.
 
 INSTALLATION
 ============
-The adapter will be installed in /usr/local/lib/ by default.
+The adapter will be installed in /usr/local/lib by default.
 
 The libecap library is required to build and use these adapters. You can get
 the library from http://www.e-cap.org/. The adapter can be built and
@@ -19,9 +19,9 @@ installed from source, usually by running:
     % make install-strip
 ```
 
-Note: LDFLAGS should point on libecap directory.
+**Note:** LDFLAGS should point on libecap directory.
 
-Note: Adapter requires libecap 1.0.0 or above.
+**Note:** Adapter requires libecap 1.0.0 or above.
       Configuration checks libecap version; make sure your pkg-config see libecap.pc, set/adjust PKG_CONFIG_PATH otherwise.
 
 CONFIGURATION
@@ -37,16 +37,14 @@ Supported configuration parameters:
 * complogname (default path/filename is /var/log/ecap_gzip_comp.log)	- arbitrary compression log name.
 * errlog (default is 0, default path/filename is /var/log/ecap_gzip_err.log) 	- error log
 * complog (default is 0, default path/filename is /var/log/ecap_gzip_comp.log)	- compression log
+* workers (default is std::thread::hardware_concurrency(), valid range 1-64)    - number of thread pool workers
 ```
 
-Note: errlogname/complogname should be specify with full path and file name. Directory(-ies) should have write permission for proxy.
-      If file(s) exists - it will appends. It not exists - will be created.
+**Note:** errlogname/complogname should be specify with full path and file name. Directory(-ies) should have write permission for proxy. If file(s) exists - it will appends. It not exists - will be created.
 
-Adapter logging disabled by default. To enable error log specify errlog=1. To enable compression log specify complog=1.
-Proxy must have permissions to write.
+Adapter logging disabled by default. To enable error log specify errlog=1. To enable compression log specify complog=1. Proxy must have permissions to write.
 
-Note: When configuration parameters has any error in specifications, adapter starts with defaults. If error log exists,
-      diagnostics message will be write.
+**Note:** When configuration parameters has any error in specifications, adapter starts with defaults. If error log exists, diagnostics message will be write.
 
 Example:
 --------
@@ -119,7 +117,7 @@ Also be careful with text/plain mime-type. For some reasons you may be required 
 because of sometimes plain text files can be inadequately big and and can overload the CPU during
 decompression. In this case specify "maxsize" which fit you requirements.
 
-** Adapter requires c++11 - compatible C++ compiler to build. **
+**Adapter requires c++11 - compatible C++ compiler to build.**
 
 ADDITIONAL DOCUMENTATION
 ========================

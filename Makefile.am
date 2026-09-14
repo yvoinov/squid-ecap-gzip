@@ -6,7 +6,7 @@ SUBDIRS	= src
 DIST_SUBDIRS = src
 
 dist-hook:
-	rm -f `find $(distdir)/src -name *.h`
+	rm -f `find $(distdir)/src -name autoconf.h`
 	rm -f `find $(distdir)/lib -name Makefile`
 	rm -f `find $(distdir)/lib -name *.o`
 	rm -f `find $(distdir)/lib -name *.lo`

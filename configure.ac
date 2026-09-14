@@ -5,16 +5,16 @@
 #
 # Process this file with autoconf to produce a configure script.
 
-m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[6])
+m4_define([VERSION_MAJOR],[2])
+m4_define([VERSION_MINOR],[0])
 m4_define([VERSION_MICRO],[0])
-m4_define([VERSION_PATCH],[11])
+m4_define([VERSION_PATCH],[0])
 
 AC_INIT(squid-ecap-gzip, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]).m4_defn([VERSION_PATCH]), [], squid-ecap-gzip)
 
-LIBADAPTER_CURRENT=6
-LIBADAPTER_REVISION=6
-LIBADAPTER_AGE=1
+LIBADAPTER_CURRENT=7
+LIBADAPTER_REVISION=0
+LIBADAPTER_AGE=0
 
 # 1.6.0.3 had 6:0:1
 # 1.6.0.4 had 6:0:1
@@ -24,6 +24,7 @@ LIBADAPTER_AGE=1
 # 1.6.0.9 had 6:4:1
 # 1.6.0.10 had 6:5:1
 # 1.6.0.11 had 6:6:1
+# 2.0.0.0 had 7:0:0
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -50,7 +51,7 @@ AC_SUBST(LIBADAPTER_AGE)
 AC_CONFIG_AUX_DIR(cfgaux)
 AC_CONFIG_MACRO_DIR([acinclude])
 AC_CONFIG_HEADERS([src/autoconf.h])
-AC_CONFIG_FILES([Makefile src/Makefile src/adapter_gzip.h])
+AC_CONFIG_FILES([Makefile src/Makefile])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 AM_MAINTAINER_MODE
@@ -106,6 +107,7 @@ AC_CHECK_LIB([z], [main],
 )
 
 dnl Checks for header files.
+AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([libecap/adapter/service.h])
 AC_CHECK_HEADERS([zlib.h])
 

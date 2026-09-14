@@ -112,3 +112,6 @@ Version 1.6.0.10 (06-29-2026)
 
 Version 1.6.0.11 (09-13-2026)
 * FIX: Virgin body state handling. Initialize control flags and synchronize receivingVb after useVirgin() to prevent invalid vbStopMaking() calls and intermittent compression failures. By Yuri Voinov.
+
+Version 2.0.0.0 (09-14-2026)
+* IMPROVEMENT: Async version. By Yuri Voinov.

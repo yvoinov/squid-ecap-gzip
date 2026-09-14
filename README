@@ -2,7 +2,7 @@ This Software is an eCAP adapter for HTTP compression with GZIP and DEFLATE.
 
 INSTALLATION
 ============
-The adapter will be installed in /usr/local/lib/ by default.
+The adapter will be installed in /usr/local/lib by default.
 
 The libecap library is required to build and use these adapters. You can get
 the library from http://www.e-cap.org/. The adapter can be built and
@@ -33,6 +33,7 @@ Supported configuration parameters:
 * complogname (default path/filename is /var/log/ecap_gzip_comp.log)	- arbitrary compression log name.
 * errlog (default is 0, default path/filename is /var/log/ecap_gzip_err.log) 	- error log
 * complog (default is 0, default path/filename is /var/log/ecap_gzip_comp.log)	- compression log
+* workers (default is std::thread::hardware_concurrency(), valid range 1-64)    - number of thread pool workers
 
 Note: errlogname/complogname should be specify with full path and file name. Directory(-ies) should have write permission for proxy.
       If file(s) exists - it will appends. It not exists - will be created.
