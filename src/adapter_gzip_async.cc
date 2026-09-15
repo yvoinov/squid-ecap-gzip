@@ -100,10 +100,10 @@
 
 namespace {
 
-constexpr std::size_t c_z_compression_level = 6;
-constexpr std::size_t c_min_compression_file_size = 512;
-constexpr std::size_t c_max_compression_file_size = 16777216;
-constexpr std::size_t c_zlib_overhead = 64;
+constexpr std::size_t z_compression_level = 6;
+constexpr std::size_t min_compression_file_size = 512;
+constexpr std::size_t max_compression_file_size = 16777216;
+constexpr std::size_t zlib_overhead = 64;
 
 const libecap::Name acceptEncodingName("Accept-Encoding");
 const libecap::Name teEncodingName("TE");
@@ -115,44 +115,44 @@ const libecap::Name eTagName("ETag");
 const libecap::Name contentXecapName("X-Ecap");
 const libecap::Name varyName("Vary");
 
-constexpr auto c_EcapGzip = "gzip";
-constexpr auto c_EcapDeflate = "deflate";
-const libecap::Header::Value XEcapDefgzipValue = libecap::Area::FromTempString(c_EcapGzip);
-const libecap::Header::Value XEcapDefdeflateValue = libecap::Area::FromTempString(c_EcapDeflate);
+constexpr auto EcapGzip = "gzip";
+constexpr auto EcapDeflate = "deflate";
+const libecap::Header::Value XEcapDefgzipValue = libecap::Area::FromTempString(EcapGzip);
+const libecap::Header::Value XEcapDefdeflateValue = libecap::Area::FromTempString(EcapDeflate);
 const libecap::Header::Value varyValue = libecap::Area::FromTempString("Accept-Encoding");
 
 const char *ECAP_SERVICE_NAME = "ecap://www.thecacheworks.com/ecap_gzip_deflate";
 const char *ECAP_ERROR_LOG = "/var/log/ecap_gzip_err.log";
 const char *ECAP_COMPRESSION_LOG = "/var/log/ecap_gzip_comp.log";
 
-const char *C_ERR_STARTING_MSG = "eCAP gzip adapter starting";
-const char *C_ERR_UNSUPP_PARAM = "Unsupported parameter: ";
-const char *C_ERR_INVALID_PARAM = "Invalid zlib parameter";
-const char *C_ERR_INSUFF_MEMORY = "Insufficient memory in zlib";
-const char *C_ERR_VERSION_ZLIB = "zlib version mismatch";
-const char *C_ERR_UNKNOWN = "Unknown zlib error: ";
-const char *C_ERR_GZINIT_FAILED = "zlib initialization failed";
-const char *C_ERR_UNKNOWN_2 = "Unknown zlib finish error: ";
-const char *C_ERR_WORKER = "Unable to start worker thread: ";
+const char *ERR_STARTING_MSG = "eCAP gzip adapter starting";
+const char *ERR_UNSUPP_PARAM = "Unsupported parameter: ";
+const char *ERR_INVALID_PARAM = "Invalid zlib parameter";
+const char *ERR_INSUFF_MEMORY = "Insufficient memory in zlib";
+const char *ERR_VERSION_ZLIB = "zlib version mismatch";
+const char *ERR_UNKNOWN = "Unknown zlib error: ";
+const char *ERR_GZINIT_FAILED = "zlib initialization failed";
+const char *ERR_UNKNOWN_2 = "Unknown zlib finish error: ";
+const char *ERR_WORKER = "Unable to start worker thread: ";
 
-constexpr long c_async_event_poll_interval_usec = 10000;
-constexpr std::size_t c_max_worker_count = 64;
+constexpr long async_event_poll_interval_usec = 10000;
+constexpr std::size_t max_worker_count = 64;
 
 std::size_t defaultWorkerCount() {
-	const unsigned int c_thr_count = std::thread::hardware_concurrency();
-	return c_thr_count > 0 ? static_cast<std::size_t>(c_thr_count) : 1;
+	const unsigned int thr_count = std::thread::hardware_concurrency();
+	return thr_count > 0 ? static_cast<std::size_t>(thr_count) : 1;
 }
 
-std::string v_ErrLogName;
-std::string v_CompLogName;
+std::string ErrLogName;
+std::string CompLogName;
 
-const std::array<unsigned char, 10> c_gzipHeader = {{ 31, 139, 8, 0, 0, 0, 0, 0, 0, 3 }};
+const std::array<unsigned char, 10> gzipHeader = {{ 31, 139, 8, 0, 0, 0, 0, 0, 0, 3 }};
 
 } /* namespace */
 
 namespace Adapter {
 
-Service::Service(): v_MaxSize(0), v_Level(0), v_ErrLog(false), v_CompLog(false), m_WorkerCount(0), m_Stopping(false), m_ActiveWork(0) {}
+Service::Service(): MaxSize(0), Level(0), ErrLog(false), CompLog(false), WorkerCount(0), Stopping(false), ActiveWork(0) {}
 
 Service::~Service() { stop(); }
 
@@ -167,24 +167,24 @@ bool Service::makesAsyncXactions() const { return true; }
 void Service::configure(const libecap::Options &cfg) {
 	Cfgtor cfgtor(*this);
 	cfg.visitEachOption(cfgtor);
-	if (v_MaxSize == 0)
-		v_MaxSize = c_max_compression_file_size;
-	if (v_Level == 0)
-		v_Level = c_z_compression_level;
-	if (v_ErrLogName.empty())
-		v_ErrLogName = ECAP_ERROR_LOG;
-	if (v_CompLogName.empty())
-		v_CompLogName = ECAP_COMPRESSION_LOG;
-	if (v_ErrLog > 0)
-		v_ErrLog = true;
+	if (MaxSize == 0)
+		MaxSize = max_compression_file_size;
+	if (Level == 0)
+		Level = z_compression_level;
+	if (ErrLogName.empty())
+		ErrLogName = ECAP_ERROR_LOG;
+	if (CompLogName.empty())
+		CompLogName = ECAP_COMPRESSION_LOG;
+	if (ErrLog > 0)
+		ErrLog = true;
 	else
-		v_ErrLog = false;
-	if (v_CompLog > 0)
-		v_CompLog = true;
+		ErrLog = false;
+	if (CompLog > 0)
+		CompLog = true;
 	else
-		v_CompLog = false;
-	if (m_WorkerCount == 0)
-		m_WorkerCount = defaultWorkerCount();
+		CompLog = false;
+	if (WorkerCount == 0)
+		WorkerCount = defaultWorkerCount();
 }
 
 void Service::reconfigure(const libecap::Options &cfg) {
@@ -194,99 +194,99 @@ void Service::reconfigure(const libecap::Options &cfg) {
 void Service::setOne(const libecap::Name &name, const libecap::Area &valArea) {
 	const std::string value = valArea.toString();
 	if (name == "maxsize")
-		v_MaxSize = (std::stoi(value) > 0 ? std::stoi(value) : v_MaxSize);
+		MaxSize = (std::stoi(value) > 0 ? std::stoi(value) : MaxSize);
 	else if (name == "level")
-		v_Level = (std::abs(std::stoi(value)) > 9 ? c_z_compression_level : std::abs(std::stoi(value)));
+		Level = (std::abs(std::stoi(value)) > 9 ? z_compression_level : std::abs(std::stoi(value)));
 	else if (name == "errlog")
-		v_ErrLog = (std::abs(std::stoi(value)) > 0);
+		ErrLog = (std::abs(std::stoi(value)) > 0);
 	else if (name == "errlogname")
-		v_ErrLogName = (value.empty() ? ECAP_ERROR_LOG : value);
+		ErrLogName = (value.empty() ? ECAP_ERROR_LOG : value);
 	else if (name == "complogname")
-		v_CompLogName = (value.empty() ? ECAP_COMPRESSION_LOG : value);
+		CompLogName = (value.empty() ? ECAP_COMPRESSION_LOG : value);
 	else if (name == "complog")
-		v_CompLog = (std::abs(std::stoi(value)) > 0);
+		CompLog = (std::abs(std::stoi(value)) > 0);
 	else if (name == "workers") {
 		const int count = std::stoi(value);
-		m_WorkerCount = static_cast<std::size_t>(std::max(1, std::min(count, static_cast<int>(c_max_worker_count))));
+		WorkerCount = static_cast<std::size_t>(std::max(1, std::min(count, static_cast<int>(max_worker_count))));
 	} else if (name == "bypassable") {
 	} else
-		Xaction::ErrorLog(C_ERR_UNSUPP_PARAM + name.image(), true);
+		Xaction::ErrorLog(ERR_UNSUPP_PARAM + name.image(), true);
 }
 
 void Service::start() {
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		if (!m_Workers.empty()) return;
-		m_Stopping = false;
-		if (m_WorkerCount == 0) m_WorkerCount = defaultWorkerCount();
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		if (!Workers.empty()) return;
+		Stopping = false;
+		if (WorkerCount == 0) WorkerCount = defaultWorkerCount();
 	}
 
 	try {
-		for (std::size_t i = 0; i < m_WorkerCount; ++i)
-			m_Workers.push_back(std::thread(&Service::worker, this));
+		for (std::size_t i = 0; i < WorkerCount; ++i)
+			Workers.push_back(std::thread(&Service::worker, this));
 	} catch (const std::system_error &e) {
 		{
-			std::lock_guard<std::mutex> lock(m_WorkMutex);
-			m_Stopping = true;
+			std::lock_guard<std::mutex> lock(WorkMutex);
+			Stopping = true;
 		}
-		m_WorkCondition.notify_all();
+		WorkCondition.notify_all();
 
-		for (std::vector<std::thread>::iterator i = m_Workers.begin(); i != m_Workers.end(); ++i) {
+		for (std::vector<std::thread>::iterator i = Workers.begin(); i != Workers.end(); ++i) {
 			if (i->joinable()) i->join();
 		}
-		m_Workers.clear();
+		Workers.clear();
 
-		Xaction::ErrorLog(std::string(C_ERR_WORKER) + e.what(), v_ErrLog);
+		Xaction::ErrorLog(std::string(ERR_WORKER) + e.what(), ErrLog);
 		return;
 	}
 
-	Xaction::ErrorLog(C_ERR_STARTING_MSG, v_ErrLog);
+	Xaction::ErrorLog(ERR_STARTING_MSG, ErrLog);
 }
 
 void Service::suspend(timeval &timeout) {
 	bool active = false;
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		active = m_ActiveWork != 0 || !m_WorkQueue.empty();
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		active = ActiveWork != 0 || !WorkQueue.empty();
 	}
 	if (!active) {
-		std::lock_guard<std::mutex> lock(m_ReadyMutex);
-		active = !m_ReadyQueue.empty();
+		std::lock_guard<std::mutex> lock(ReadyMutex);
+		active = !ReadyQueue.empty();
 	}
 	if (active) {
-		if (timeout.tv_sec > 0 || timeout.tv_usec > c_async_event_poll_interval_usec) {
+		if (timeout.tv_sec > 0 || timeout.tv_usec > async_event_poll_interval_usec) {
 			timeout.tv_sec = 0;
-			timeout.tv_usec = c_async_event_poll_interval_usec;
+			timeout.tv_usec = async_event_poll_interval_usec;
 		}
 	}
 }
 
 void Service::resume() {
-	std::deque<libecap::shared_ptr<Xaction> > readyQueue;
+	std::deque<libecap::shared_ptr<Xaction>> readyQueue;
 	{
-		std::lock_guard<std::mutex> lock(m_ReadyMutex);
-		readyQueue.swap(m_ReadyQueue);
+		std::lock_guard<std::mutex> lock(ReadyMutex);
+		readyQueue.swap(ReadyQueue);
 	}
-	for (std::deque<libecap::shared_ptr<Xaction> >::iterator i = readyQueue.begin(); i != readyQueue.end(); ++i)
+	for (std::deque<libecap::shared_ptr<Xaction>>::iterator i = readyQueue.begin(); i != readyQueue.end(); ++i)
 		if (*i)	(*i)->resumeHost();
 }
 
 void Service::stop() {
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		m_Stopping = true;
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		Stopping = true;
 	}
-	m_WorkCondition.notify_all();
-	for (std::vector<std::thread>::iterator i = m_Workers.begin(); i != m_Workers.end(); ++i)
+	WorkCondition.notify_all();
+	for (std::vector<std::thread>::iterator i = Workers.begin(); i != Workers.end(); ++i)
 		if (i->joinable()) i->join();
-	m_Workers.clear();
+	Workers.clear();
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		m_WorkQueue.clear();
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		WorkQueue.clear();
 	}
 	{
-		std::lock_guard<std::mutex> lock(m_ReadyMutex);
-		m_ReadyQueue.clear();
+		std::lock_guard<std::mutex> lock(ReadyMutex);
+		ReadyQueue.clear();
 	}
 }
 
@@ -315,33 +315,33 @@ void Service::enqueue(libecap::shared_ptr<Xaction> x) {
 		return;
 
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		if (m_Stopping) {
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		if (Stopping) {
 			x->workScheduled.store(false, std::memory_order_release);
 			return;
 		}
-		m_WorkQueue.push_back(x);
+		WorkQueue.push_back(x);
 	}
-	m_WorkCondition.notify_one();
+	WorkCondition.notify_one();
 }
 
 bool Service::requeue(libecap::shared_ptr<Xaction> x) {
 	if (!x)	return false;
 
 	{
-		std::lock_guard<std::mutex> lock(m_WorkMutex);
-		if (m_Stopping)	return false;
-		m_WorkQueue.push_back(x);
+		std::lock_guard<std::mutex> lock(WorkMutex);
+		if (Stopping)	return false;
+		WorkQueue.push_back(x);
 	}
-	m_WorkCondition.notify_one();
+	WorkCondition.notify_one();
 	return true;
 }
 
 void Service::ready(libecap::shared_ptr<Xaction> x) {
 	if (!x)	return;
 	{
-		std::lock_guard<std::mutex> lock(m_ReadyMutex);
-		m_ReadyQueue.push_back(x);
+		std::lock_guard<std::mutex> lock(ReadyMutex);
+		ReadyQueue.push_back(x);
 	}
 }
 
@@ -349,12 +349,12 @@ void Service::worker() {
 	for (;;) {
 		libecap::shared_ptr<Xaction> x;
 		{
-			std::unique_lock<std::mutex> lock(m_WorkMutex);
-			m_WorkCondition.wait(lock, [this] { return m_Stopping || !m_WorkQueue.empty(); });
-			if (m_Stopping && m_WorkQueue.empty()) return;
-			x = m_WorkQueue.front();
-			m_WorkQueue.pop_front();
-			++m_ActiveWork;
+			std::unique_lock<std::mutex> lock(WorkMutex);
+			WorkCondition.wait(lock, [this] { return Stopping || !WorkQueue.empty(); });
+			if (Stopping && WorkQueue.empty()) return;
+			x = WorkQueue.front();
+			WorkQueue.pop_front();
+			++ActiveWork;
 		}
 		if (x) {
 			const bool moreWork = x->processOne();
@@ -367,8 +367,8 @@ void Service::worker() {
 		}
 
 		{
-			std::lock_guard<std::mutex> lock(m_WorkMutex);
-			if (m_ActiveWork > 0) --m_ActiveWork;
+			std::lock_guard<std::mutex> lock(WorkMutex);
+			if (ActiveWork > 0) --ActiveWork;
 		}
 	}
 }
@@ -414,23 +414,23 @@ bool Xaction::gzipInitialize() {
 	int rc;
 	if (controlFlags.requestAcceptEncodingGzip) {
 		gzipMode = true;
-		rc = deflateInit2(&zstream, static_cast<int>(service->v_Level), Z_DEFLATED, -MAX_WBITS, 9, Z_DEFAULT_STRATEGY);
+		rc = deflateInit2(&zstream, static_cast<int>(service->Level), Z_DEFLATED, -MAX_WBITS, 9, Z_DEFAULT_STRATEGY);
 	} else {
 		gzipMode = false;
-		rc = deflateInit(&zstream, static_cast<int>(service->v_Level));
+		rc = deflateInit(&zstream, static_cast<int>(service->Level));
 	}
 	if (rc == Z_OK) {
 		zstreamInitialized = true;
 		return true;
 	}
 	if (rc == Z_STREAM_ERROR)
-		ErrorLog(C_ERR_INVALID_PARAM, service->v_ErrLog);
+		ErrorLog(ERR_INVALID_PARAM, service->ErrLog);
 	else if (rc == Z_MEM_ERROR)
-		ErrorLog(C_ERR_INSUFF_MEMORY, service->v_ErrLog);
+		ErrorLog(ERR_INSUFF_MEMORY, service->ErrLog);
 	else if (rc == Z_VERSION_ERROR)
-		ErrorLog(C_ERR_VERSION_ZLIB, service->v_ErrLog);
+		ErrorLog(ERR_VERSION_ZLIB, service->ErrLog);
 	else
-		ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
+		ErrorLog(ERR_UNKNOWN + std::to_string(rc), service->ErrLog);
 	return false;
 }
 
@@ -455,9 +455,9 @@ void Xaction::start() {
 		const libecap::Header::Value acceptEncoding = hostx->cause().header().value(acceptEncodingName);
 		if (acceptEncoding.size > 0) {
 			controlFlags.requestAcceptEncodingOk = true;
-			if (acceptEncoding.toString().find(c_EcapGzip) != std::string::npos)
+			if (acceptEncoding.toString().find(EcapGzip) != std::string::npos)
 				controlFlags.requestAcceptEncodingGzip = true;
-			else if (acceptEncoding.toString().find(c_EcapDeflate) != std::string::npos)
+			else if (acceptEncoding.toString().find(EcapDeflate) != std::string::npos)
 				controlFlags.requestAcceptEncodingDeflate = true;
 		}
 	}
@@ -470,7 +470,7 @@ void Xaction::start() {
 	contentTypeString = contentType.toString();
 	if (adapted->header().hasAny(libecap::headerContentLength)) {
 		const std::size_t contentLength = std::stoi(adapted->header().value(libecap::headerContentLength).toString());
-		controlFlags.requestContentLengthOk = contentLength >= c_min_compression_file_size && contentLength < service->v_MaxSize;
+		controlFlags.requestContentLengthOk = contentLength >= min_compression_file_size && contentLength < service->MaxSize;
 	}
 
 	adapted->header().removeAny(libecap::headerContentLength);
@@ -498,7 +498,7 @@ void Xaction::start() {
 		if (gzipInitialize())
 			hostx->useAdapted(adapted);
 		else {
-			ErrorLog(C_ERR_GZINIT_FAILED, service->v_ErrLog);
+			ErrorLog(ERR_GZINIT_FAILED, service->ErrLog);
 			hostx->useVirgin();
 			if (receivingVb == OpState::opOn)
 				receivingVb = OpState::opComplete;
@@ -676,9 +676,9 @@ void Xaction::processInput(InputChunk &input) {
 	if (gzipMode) checksum = crc32(checksum, input.data.data(), static_cast<uInt>(input.data.size()));
 
 	OutputChunk output;
-	const std::size_t headerSize = gzipMode && originalSize == input.data.size() ? c_gzipHeader.size() : 0;
-	output.data.resize(headerSize + input.data.size() + input.data.size() / 100 + c_zlib_overhead);
-	if (headerSize)	std::copy(c_gzipHeader.begin(), c_gzipHeader.end(), output.data.begin());
+	const std::size_t headerSize = gzipMode && originalSize == input.data.size() ? gzipHeader.size() : 0;
+	output.data.resize(headerSize + input.data.size() + input.data.size() / 100 + zlib_overhead);
+	if (headerSize)	std::copy(gzipHeader.begin(), gzipHeader.end(), output.data.begin());
 
 	zstream.next_in = input.data.data();
 	zstream.avail_in = static_cast<uInt>(input.data.size());
@@ -688,7 +688,7 @@ void Xaction::processInput(InputChunk &input) {
 
 	int rc = deflate(&zstream, Z_SYNC_FLUSH);
 	if (rc != Z_OK) {
-		ErrorLog(C_ERR_UNKNOWN + std::to_string(rc), service->v_ErrLog);
+		ErrorLog(ERR_UNKNOWN + std::to_string(rc), service->ErrLog);
 		return;
 	}
 	output.data.resize(headerSize + zstream.total_out);
@@ -701,7 +701,7 @@ void Xaction::processInput(InputChunk &input) {
 
 void Xaction::finishCompression(bool aAtEnd) {
 	OutputChunk output;
-	output.data.resize(c_zlib_overhead + 32);
+	output.data.resize(zlib_overhead + 32);
 	zstream.next_in = Z_NULL;
 	zstream.avail_in = 0;
 	zstream.next_out = output.data.data();
@@ -710,7 +710,7 @@ void Xaction::finishCompression(bool aAtEnd) {
 
 	int rc = deflate(&zstream, Z_FINISH);
 	if (rc != Z_STREAM_END) {
-		ErrorLog(C_ERR_UNKNOWN_2 + std::to_string(rc), service->v_ErrLog);
+		ErrorLog(ERR_UNKNOWN_2 + std::to_string(rc), service->ErrLog);
 		if (zstreamInitialized) {
 			deflateEnd(&zstream);
 			zstreamInitialized = false;
@@ -741,9 +741,9 @@ void Xaction::finishCompression(bool aAtEnd) {
 		zstreamInitialized = false;
 	}
 
-	if (service->v_CompLog) {
+	if (service->CompLog) {
 		const double ratio = originalSize > 0 ? 1.0 - static_cast<double>(compressedSize) / static_cast<double>(originalSize) : 0.0;
-		CompressionLog(originalSize, compressedSize, ratio, contentTypeString, gzipMode ? c_EcapGzip : c_EcapDeflate);
+		CompressionLog(originalSize, compressedSize, ratio, contentTypeString, gzipMode ? EcapGzip : EcapDeflate);
 	}
 
 	{
@@ -776,17 +776,17 @@ libecap::host::Xaction *Xaction::lastHostCall() {
 
 void Xaction::ErrorLog(const std::string &p_log_entry, bool p_ErrLog) {
 	if (p_ErrLog) {
-		std::ofstream v_file(v_ErrLogName, std::ios_base::app | std::ios_base::out);
-		if (v_file.is_open())
-			v_file << p_log_entry << '\n';
+		std::ofstream file(ErrLogName, std::ios_base::app | std::ios_base::out);
+		if (file.is_open())
+			file << p_log_entry << '\n';
 	}
 }
 
 void Xaction::CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
 		const std::string &p_Type, const std::string &p_compType) {
-	std::ofstream v_file(v_CompLogName, std::ios_base::app | std::ios_base::out);
-	if (v_file.is_open())
-		v_file << time(nullptr) << ' ' << p_origSize << ' ' << p_compSize << ' ' << p_compRatio << ' ' << p_Type << ' ' << p_compType << '\n';
+	std::ofstream file(CompLogName, std::ios_base::app | std::ios_base::out);
+	if (file.is_open())
+		file << time(nullptr) << ' ' << p_origSize << ' ' << p_compSize << ' ' << p_compRatio << ' ' << p_Type << ' ' << p_compType << '\n';
 }
 
 const bool Registered = (libecap::RegisterVersionedService(new Adapter::Service));
