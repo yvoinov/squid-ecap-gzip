@@ -49,10 +49,10 @@ class Service: public libecap::adapter::Service {
 		virtual bool wantsUrl(const char *url) const;
 		virtual MadeXactionPointer makeXaction(libecap::host::Xaction *hostx);
 
-		std::size_t v_MaxSize;
-		std::size_t v_Level;
-		bool v_ErrLog;
-		bool v_CompLog;
+		std::size_t MaxSize;
+		std::size_t Level;
+		bool ErrLog;
+		bool CompLog;
 
 		void enqueue(libecap::shared_ptr<Xaction> x);
 		void ready(libecap::shared_ptr<Xaction> x);
@@ -63,15 +63,15 @@ class Service: public libecap::adapter::Service {
 		void worker();
 		bool requeue(libecap::shared_ptr<Xaction> x);
 
-		std::mutex m_WorkMutex;
-		std::condition_variable m_WorkCondition;
-		std::deque<libecap::shared_ptr<Xaction> > m_WorkQueue;
-		std::mutex m_ReadyMutex;
-		std::deque<libecap::shared_ptr<Xaction> > m_ReadyQueue;
-		std::vector<std::thread> m_Workers;
-		std::size_t m_WorkerCount;
-		bool m_Stopping;
-		std::size_t m_ActiveWork;
+		std::mutex WorkMutex;
+		std::condition_variable WorkCondition;
+		std::deque<libecap::shared_ptr<Xaction>> WorkQueue;
+		std::mutex ReadyMutex;
+		std::deque<libecap::shared_ptr<Xaction>> ReadyQueue;
+		std::vector<std::thread> Workers;
+		std::size_t WorkerCount;
+		bool Stopping;
+		std::size_t ActiveWork;
 };
 
 class Cfgtor: public libecap::NamedValueVisitor {
