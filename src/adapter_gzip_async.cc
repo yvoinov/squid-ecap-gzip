@@ -208,7 +208,6 @@ void Service::setOne(const libecap::Name &name, const libecap::Area &valArea) {
 	else if (name == "workers") {
 		const int count = std::stoi(value);
 		WorkerCount = static_cast<std::size_t>(std::max(1, std::min(count, static_cast<int>(max_worker_count))));
-	} else if (name == "bypassable") {
 	} else
 		Xaction::ErrorLog(ERR_UNSUPP_PARAM + name.image(), true);
 }
@@ -218,7 +217,6 @@ void Service::start() {
 		std::lock_guard<std::mutex> lock(WorkMutex);
 		if (!Workers.empty()) return;
 		Stopping = false;
-		if (WorkerCount == 0) WorkerCount = defaultWorkerCount();
 	}
 
 	try {
@@ -231,9 +229,8 @@ void Service::start() {
 		}
 		WorkCondition.notify_all();
 
-		for (std::vector<std::thread>::iterator i = Workers.begin(); i != Workers.end(); ++i) {
-			if (i->joinable()) i->join();
-		}
+		for (std::thread &worker : Workers)
+			if (worker.joinable()) worker.join();
 		Workers.clear();
 
 		Xaction::ErrorLog(std::string(ERR_WORKER) + e.what(), ErrLog);
@@ -249,26 +246,26 @@ void Service::suspend(timeval &timeout) {
 		std::lock_guard<std::mutex> lock(WorkMutex);
 		active = ActiveWork != 0 || !WorkQueue.empty();
 	}
+
 	if (!active) {
 		std::lock_guard<std::mutex> lock(ReadyMutex);
 		active = !ReadyQueue.empty();
 	}
-	if (active) {
-		if (timeout.tv_sec > 0 || timeout.tv_usec > async_event_poll_interval_usec) {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = async_event_poll_interval_usec;
-		}
+
+	if (active && (timeout.tv_sec > 0 || timeout.tv_usec > async_event_poll_interval_usec)) {
+		timeout.tv_sec = 0;
+		timeout.tv_usec = async_event_poll_interval_usec;
 	}
 }
 
 void Service::resume() {
-	std::deque<libecap::shared_ptr<Xaction>> readyQueue;
+	std::deque<libecap::shared_ptr<Xaction> > readyQueue;
 	{
 		std::lock_guard<std::mutex> lock(ReadyMutex);
 		readyQueue.swap(ReadyQueue);
 	}
-	for (std::deque<libecap::shared_ptr<Xaction>>::iterator i = readyQueue.begin(); i != readyQueue.end(); ++i)
-		if (*i)	(*i)->resumeHost();
+	for (const libecap::shared_ptr<Xaction> &x : readyQueue)
+		if (x) x->resumeHost();
 }
 
 void Service::stop() {
@@ -277,8 +274,9 @@ void Service::stop() {
 		Stopping = true;
 	}
 	WorkCondition.notify_all();
-	for (std::vector<std::thread>::iterator i = Workers.begin(); i != Workers.end(); ++i)
-		if (i->joinable()) i->join();
+
+	for (std::thread &worker : Workers)
+		if (worker.joinable()) worker.join();
 	Workers.clear();
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
@@ -330,7 +328,7 @@ bool Service::requeue(libecap::shared_ptr<Xaction> x) {
 
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
-		if (Stopping)	return false;
+		if (Stopping) return false;
 		WorkQueue.push_back(x);
 	}
 	WorkCondition.notify_one();
@@ -396,7 +394,8 @@ Xaction::Xaction(libecap::shared_ptr<Service> aService, libecap::host::Xaction *
 }
 
 Xaction::~Xaction() {
-	if (zstreamInitialized)	deflateEnd(&zstream);
+	if (zstreamInitialized)
+		deflateEnd(&zstream);
 	if (libecap::host::Xaction *x = hostx) {
 		hostx = nullptr;
 		x->adaptationAborted();
@@ -537,10 +536,12 @@ void Xaction::resume() {
 		if (stopped) return;
 		notifyAvailable = !outputQueue.empty() && sendingAb == OpState::opOn;
 		notifyDone = compressionFinished && outputQueue.empty() && !finalSent && sendingAb == OpState::opOn;
-		if (notifyDone)	finalSent = true;
+		if (notifyDone)
+			finalSent = true;
 	}
 
-	if (notifyAvailable) x->noteAbContentAvailable();
+	if (notifyAvailable)
+		x->noteAbContentAvailable();
 	if (notifyDone) {
 		x->noteAbContentDone(atEnd);
 		sendingAb = OpState::opComplete;
@@ -565,11 +566,13 @@ void Xaction::abMake() {
 		available = !outputQueue.empty();
 		done = compressionFinished && outputQueue.empty() && !finalSent;
 	}
-	if (available || done) signalReady();
+	if (available || done)
+		signalReady();
 }
 
 void Xaction::abMakeMore() {
-	if (receivingVb == OpState::opOn && hostx) hostx->vbMakeMore();
+	if (receivingVb == OpState::opOn && hostx)
+		hostx->vbMakeMore();
 }
 
 void Xaction::abStopMaking() {
@@ -604,7 +607,8 @@ void Xaction::abContentShift(libecap::size_type size) {
 			outputQueue.pop_front();
 		more = !outputQueue.empty();
 	}
-	if (more && hostx) hostx->noteAbContentAvailable();
+	if (more && hostx)
+		hostx->noteAbContentAvailable();
 }
 
 void Xaction::noteVbContentDone(bool aAtEnd) {
@@ -673,12 +677,14 @@ bool Xaction::processOne() {
 void Xaction::processInput(InputChunk &input) {
 	if (input.data.empty()) return;
 	originalSize += input.data.size();
-	if (gzipMode) checksum = crc32(checksum, input.data.data(), static_cast<uInt>(input.data.size()));
+	if (gzipMode)
+		checksum = crc32(checksum, input.data.data(), static_cast<uInt>(input.data.size()));
 
 	OutputChunk output;
 	const std::size_t headerSize = gzipMode && originalSize == input.data.size() ? gzipHeader.size() : 0;
 	output.data.resize(headerSize + input.data.size() + input.data.size() / 100 + zlib_overhead);
-	if (headerSize)	std::copy(gzipHeader.begin(), gzipHeader.end(), output.data.begin());
+	if (headerSize)
+		std::copy(gzipHeader.begin(), gzipHeader.end(), output.data.begin());
 
 	zstream.next_in = input.data.data();
 	zstream.avail_in = static_cast<uInt>(input.data.size());
@@ -748,7 +754,8 @@ void Xaction::finishCompression(bool aAtEnd) {
 
 	{
 		std::lock_guard<std::mutex> lock(queueMutex);
-		if (!output.data.empty()) outputQueue.push_back(std::move(output));
+		if (!output.data.empty())
+			outputQueue.push_back(std::move(output));
 		finalPending = false;
 		compressionFinished = true;
 		finalSent = false;
@@ -763,7 +770,8 @@ void Xaction::signalReady() {
 
 void Xaction::stopVb() {
 	if (receivingVb == OpState::opOn) {
-		if (hostx) hostx->vbStopMaking();
+		if (hostx)
+			hostx->vbStopMaking();
 		receivingVb = OpState::opComplete;
 	}
 }
