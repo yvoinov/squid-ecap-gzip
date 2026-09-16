@@ -65,9 +65,9 @@ class Service: public libecap::adapter::Service {
 
 		std::mutex WorkMutex;
 		std::condition_variable WorkCondition;
-		std::deque<libecap::shared_ptr<Xaction> > WorkQueue;
+		std::deque<libecap::shared_ptr<Xaction>> WorkQueue;
 		std::mutex ReadyMutex;
-		std::deque<libecap::shared_ptr<Xaction> > ReadyQueue;
+		std::deque<libecap::shared_ptr<Xaction>> ReadyQueue;
 		std::vector<std::thread> Workers;
 		std::size_t WorkerCount;
 		bool Stopping;
