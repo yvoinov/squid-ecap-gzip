@@ -221,7 +221,7 @@ void Service::start() {
 
 	try {
 		for (std::size_t i = 0; i < WorkerCount; ++i)
-			Workers.push_back(std::thread(&Service::worker, this));
+			Workers.emplace_back(std::thread(&Service::worker, this));//constructing an object in-place
 	} catch (const std::system_error &e) {
 		{
 			std::lock_guard<std::mutex> lock(WorkMutex);
