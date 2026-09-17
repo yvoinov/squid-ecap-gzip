@@ -17365,6 +17365,68 @@ printf '%s\n' "no" >&6; }
   SET_MAKE="MAKE=${MAKE-make}"
 fi
 
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for C++ compiler vendor" >&5
+printf %s "checking for C++ compiler vendor... " >&6; }
+if test ${ax_cv_cxx_compiler_vendor+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)   # note: don't check for gcc first since some other compilers define __GNUC__
+  vendors="intel:     __ICC,__ECC,__INTEL_COMPILER
+           ibm:       __xlc__,__xlC__,__IBMC__,__IBMCPP__
+           pathscale: __PATHCC__,__PATHSCALE__
+           clang:     __clang__
+           cray:      _CRAYC
+           fujitsu:   __FUJITSU
+           sdcc:      SDCC, __SDCC
+           gnu:       __GNUC__
+           sun:       __SUNPRO_C,__SUNPRO_CC
+           hp:        __HP_cc,__HP_aCC
+           dec:       __DECC,__DECCXX,__DECC_VER,__DECCXX_VER
+           borland:   __BORLANDC__,__CODEGEARC__,__TURBOC__
+           comeau:    __COMO__
+           kai:       __KCC
+           lcc:       __LCC__
+           sgi:       __sgi,sgi
+           microsoft: _MSC_VER
+           metrowerks: __MWERKS__
+           watcom:    __WATCOMC__
+           portland:  __PGI
+	   tcc:       __TINYC__
+           unknown:   UNKNOWN"
+  for ventest in $vendors; do
+    case $ventest in
+      *:) vendor=$ventest; continue ;;
+      *)  vencpp="defined("`echo $ventest | sed 's/,/) || defined(/g'`")" ;;
+    esac
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+      #if !($vencpp)
+        thisisanerror;
+      #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  done
+  ax_cv_cxx_compiler_vendor=`echo $vendor | cut -d: -f1`
+  ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_cxx_compiler_vendor" >&5
+printf '%s\n' "$ax_cv_cxx_compiler_vendor" >&6; }
+
 
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for grep that handles long lines and -e" >&5
 printf %s "checking for grep that handles long lines and -e... " >&6; }
@@ -17818,6 +17880,148 @@ if test "x$user_opt" = "x"; then
     CXXFLAGS="$CXXFLAGS -O3"
 fi
 
+if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
+  CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+  LDFLAGS="$LDFLAGS -lpthread"
+else
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -pthread" >&5
+printf %s "checking whether C++ compiler accepts -pthread... " >&6; }
+if test ${ax_cv_check_cxxflags___pthread+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS  -pthread"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags___pthread=yes
+else case e in #(
+  e) ax_cv_check_cxxflags___pthread=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___pthread" >&5
+printf '%s\n' "$ax_cv_check_cxxflags___pthread" >&6; }
+if test "x$ax_cv_check_cxxflags___pthread" = xyes
+then :
+  CXXFLAGS="$CXXFLAGS -pthread"; LDFLAGS="$LDFLAGS -pthread -lpthread"; ac_cv_pth_supported=yes
+else case e in #(
+  e) ac_cv_pth_supported=no ;;
+esac
+fi
+
+  if test "x$ac_cv_pth_supported" = "xno"; then
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: -pthread not supported" >&5
+printf '%s\n' "$as_me: -pthread not supported" >&6;}
+  fi
+fi
+
+if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -flto" >&5
+printf %s "checking whether C++ compiler accepts -flto... " >&6; }
+if test ${ax_cv_check_cxxflags___flto+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS  -flto"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags___flto=yes
+else case e in #(
+  e) ax_cv_check_cxxflags___flto=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___flto" >&5
+printf '%s\n' "$ax_cv_check_cxxflags___flto" >&6; }
+if test "x$ax_cv_check_cxxflags___flto" = xyes
+then :
+  CXXFLAGS="$CXXFLAGS -flto=thin"; ac_cv_lto_supported=yes
+else case e in #(
+  e) ac_cv_lto_supported=no ;;
+esac
+fi
+
+elif test "$ax_cv_cxx_compiler_vendor" = "gnu"; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -flto" >&5
+printf %s "checking whether C++ compiler accepts -flto... " >&6; }
+if test ${ax_cv_check_cxxflags___flto+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS  -flto"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags___flto=yes
+else case e in #(
+  e) ax_cv_check_cxxflags___flto=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___flto" >&5
+printf '%s\n' "$ax_cv_check_cxxflags___flto" >&6; }
+if test "x$ax_cv_check_cxxflags___flto" = xyes
+then :
+  CXXFLAGS="$CXXFLAGS -flto"; ac_cv_lto_supported=yes
+else case e in #(
+  e) ac_cv_lto_supported=no ;;
+esac
+fi
+
+fi
+
+if test "x$ac_cv_lto_supported" = "xno"; then
+  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: LTO/Link optimization not supported" >&5
+printf '%s\n' "$as_me: LTO/Link optimization not supported" >&6;}
+fi
+
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for main in -lecap" >&5
 printf %s "checking for main in -lecap... " >&6; }
 if test ${ac_cv_lib_ecap_main+y}
@@ -18052,53 +18256,6 @@ fi
 # Libecap compatibility check
 if ! $PKG_CONFIG --atleast-version=1.0 libecap; then
     as_fn_error $? "Check PKG_CONFIG_PATH points on libecap.pc dir or get latest libecap from e-cap.org" "$LINENO" 5
-fi
-
-{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -flto" >&5
-printf %s "checking whether C++ compiler accepts -flto... " >&6; }
-if test ${ax_cv_check_cxxflags___flto+y}
-then :
-  printf %s "(cached) " >&6
-else case e in #(
-  e)
-  ax_check_save_flags=$CXXFLAGS
-  CXXFLAGS="$CXXFLAGS  -flto"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main (void)
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"
-then :
-  ax_cv_check_cxxflags___flto=yes
-else case e in #(
-  e) ax_cv_check_cxxflags___flto=no ;;
-esac
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-  CXXFLAGS=$ax_check_save_flags ;;
-esac
-fi
-{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___flto" >&5
-printf '%s\n' "$ax_cv_check_cxxflags___flto" >&6; }
-if test "x$ax_cv_check_cxxflags___flto" = xyes
-then :
-  CXXFLAGS="$CXXFLAGS -flto"; ac_cv_lto_supported=yes
-else case e in #(
-  e) ac_cv_lto_supported=no ;;
-esac
-fi
-
-
-if test x"$ac_cv_lto_supported" = xno; then
- { printf '%s\n' "$as_me:${as_lineno-$LINENO}: LTO/Link optimization not supported" >&5
-printf '%s\n' "$as_me: LTO/Link optimization not supported" >&6;}
 fi
 
 
