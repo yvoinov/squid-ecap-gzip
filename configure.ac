@@ -70,6 +70,7 @@ AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
+AX_COMPILER_VENDOR
 
 AC_PROG_GREP
 if test "x$ac_cv_path_GREP" = "xno"; then
@@ -95,6 +96,30 @@ if test "x$user_opt" = "x"; then
   CXXFLAGS="$CXXFLAGS -O3"
 fi
 
+dnl Do the stuff needed for compiler-specific optimization/platform settings
+if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
+  CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+  LDFLAGS="$LDFLAGS -lpthread"
+else
+  dnl Check -pthread
+  AX_CHECK_COMPILE_FLAG([-pthread], [CXXFLAGS="$CXXFLAGS -pthread"; LDFLAGS="$LDFLAGS -pthread -lpthread"; ac_cv_pth_supported=yes], [ac_cv_pth_supported=no], [])
+  if test "x$ac_cv_pth_supported" = "xno"; then
+    AC_MSG_NOTICE([-pthread not supported])
+  fi
+fi
+
+if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
+    dnl Check ThinLTO (clang)
+    AX_CHECK_COMPILE_FLAG([-flto], [CXXFLAGS="$CXXFLAGS -flto=thin"; ac_cv_lto_supported=yes], [ac_cv_lto_supported=no], [])
+elif test "$ax_cv_cxx_compiler_vendor" = "gnu"; then
+    dnl Check LTO (GCC)
+    AX_CHECK_COMPILE_FLAG([-flto], [CXXFLAGS="$CXXFLAGS -flto"; ac_cv_lto_supported=yes], [ac_cv_lto_supported=no], [])
+fi
+
+if test "x$ac_cv_lto_supported" = "xno"; then
+  AC_MSG_NOTICE([LTO/Link optimization not supported])
+fi
+
 dnl Checks for libraries
 AC_CHECK_LIB([ecap], [main],
     [LIBS="-lecap $LIBS"],
@@ -116,13 +141,6 @@ AC_PATH_TOOL(PKG_CONFIG, pkg-config)
 # Libecap compatibility check
 if ! $PKG_CONFIG --atleast-version=1.0 libecap; then
     AC_MSG_ERROR(Check PKG_CONFIG_PATH points on libecap.pc dir or get latest libecap from e-cap.org)
-fi
-
-dnl Check LTO (GCC)
-AX_CHECK_COMPILE_FLAG([-flto], [CXXFLAGS="$CXXFLAGS -flto"; ac_cv_lto_supported=yes], [ac_cv_lto_supported=no], [])
-
-if test x"$ac_cv_lto_supported" = xno; then
- AC_MSG_NOTICE([LTO/Link optimization not supported])
 fi
 
 AC_SUBST(AM_CXXFLAGS)
