@@ -96,18 +96,13 @@ if test "x$user_opt" = "x"; then
   CXXFLAGS="$CXXFLAGS -O3"
 fi
 
-dnl Do the stuff needed for compiler-specific optimization/platform settings
-if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
-  CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-  LDFLAGS="$LDFLAGS -lpthread"
-else
-  dnl Check -pthread
-  AX_CHECK_COMPILE_FLAG([-pthread], [CXXFLAGS="$CXXFLAGS -pthread"; LDFLAGS="$LDFLAGS -pthread -lpthread"; ac_cv_pth_supported=yes], [ac_cv_pth_supported=no], [])
-  if test "x$ac_cv_pth_supported" = "xno"; then
-    AC_MSG_NOTICE([-pthread not supported])
-  fi
+dnl Check -pthread
+AX_CHECK_COMPILE_FLAG([-pthread], [CXXFLAGS="$CXXFLAGS -pthread"; LDFLAGS="$LDFLAGS -pthread -lpthread"; ac_cv_pth_supported=yes], [ac_cv_pth_supported=no], [])
+if test "x$ac_cv_pth_supported" = "xno"; then
+  AC_MSG_NOTICE([-pthread not supported])
 fi
 
+dnl Check LTO
 if test "$ax_cv_cxx_compiler_vendor" = "clang"; then
     dnl Check ThinLTO (clang)
     AX_CHECK_COMPILE_FLAG([-flto], [CXXFLAGS="$CXXFLAGS -flto=thin"; ac_cv_lto_supported=yes], [ac_cv_lto_supported=no], [])
