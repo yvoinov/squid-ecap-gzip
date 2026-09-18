@@ -1352,6 +1352,7 @@ AC_SUBST(am__xargs_n)
 ])
 
 m4_include([acinclude/ax_check_compile_flag.m4])
+m4_include([acinclude/ax_compiler_vendor.m4])
 m4_include([acinclude/ax_cxx_compile_stdcxx.m4])
 m4_include([acinclude/ax_cxx_have_stl.m4])
 m4_include([acinclude/ax_cxx_namespaces.m4])
