@@ -221,7 +221,7 @@ void Service::start() {
 
 	try {
 		for (std::size_t i = 0; i < WorkerCount; ++i)
-			Workers.emplace_back(std::thread(&Service::worker, this));//constructing an object in-place
+			Workers.emplace_back(std::thread(&Service::worker, this)); // constructing object in-place
 	} catch (const std::system_error &e) {
 		{
 			std::lock_guard<std::mutex> lock(WorkMutex);
@@ -730,16 +730,18 @@ void Xaction::finishCompression(bool aAtEnd) {
 
 	output.data.resize(zstream.total_out);
 	if (gzipMode) {
-		const std::size_t oldSize = output.data.size();
-		output.data.resize(oldSize + 8);
-		output.data[oldSize + 0] = static_cast<unsigned char>(checksum & 0xff);
-		output.data[oldSize + 1] = static_cast<unsigned char>((checksum >> 8) & 0xff);
-		output.data[oldSize + 2] = static_cast<unsigned char>((checksum >> 16) & 0xff);
-		output.data[oldSize + 3] = static_cast<unsigned char>((checksum >> 24) & 0xff);
-		output.data[oldSize + 4] = static_cast<unsigned char>(originalSize & 0xff);
-		output.data[oldSize + 5] = static_cast<unsigned char>((originalSize >> 8) & 0xff);
-		output.data[oldSize + 6] = static_cast<unsigned char>((originalSize >> 16) & 0xff);
-		output.data[oldSize + 7] = static_cast<unsigned char>((originalSize >> 24) & 0xff);
+		// GZIP stores CRC32 and ISIZE as 32-bit little-endian values.
+		const std::array<unsigned char, 8> trailer = {{
+			static_cast<unsigned char>(checksum),
+			static_cast<unsigned char>(checksum >> 8),
+			static_cast<unsigned char>(checksum >> 16),
+			static_cast<unsigned char>(checksum >> 24),
+			static_cast<unsigned char>(originalSize),
+			static_cast<unsigned char>(originalSize >> 8),
+			static_cast<unsigned char>(originalSize >> 16),
+			static_cast<unsigned char>(originalSize >> 24)
+		}};
+		output.data.insert(output.data.end(), trailer.begin(), trailer.end());
 	}
 	compressedSize += output.data.size();
 	if (zstreamInitialized) {
