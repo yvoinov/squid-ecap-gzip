@@ -115,3 +115,6 @@ Version 1.6.0.11 (09-13-2026)
 
 Version 2.0.0.0 (09-14-2026)
 * IMPROVEMENT: Async version. By Yuri Voinov.
+
+Version 2.1.0.0 (09-22-2026)
+* IMPROVEMENT: Refined asynchronous GZIP/DEFLATE processing, worker scheduling, output handling, and Squid parameter support; removed the internal std::tr1 dependency. By Yuri Voinov.
