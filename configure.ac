@@ -6,14 +6,14 @@
 # Process this file with autoconf to produce a configure script.
 
 m4_define([VERSION_MAJOR],[2])
-m4_define([VERSION_MINOR],[0])
+m4_define([VERSION_MINOR],[1])
 m4_define([VERSION_MICRO],[0])
 m4_define([VERSION_PATCH],[0])
 
 AC_INIT(squid-ecap-gzip, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]).m4_defn([VERSION_PATCH]), [], squid-ecap-gzip)
 
 LIBADAPTER_CURRENT=7
-LIBADAPTER_REVISION=0
+LIBADAPTER_REVISION=1
 LIBADAPTER_AGE=0
 
 # 1.6.0.3 had 6:0:1
@@ -25,6 +25,7 @@ LIBADAPTER_AGE=0
 # 1.6.0.10 had 6:5:1
 # 1.6.0.11 had 6:6:1
 # 2.0.0.0 had 7:0:0
+# 2.1.0.0 had 7:1:0
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
