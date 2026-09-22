@@ -11,11 +11,10 @@
 #include <libecap/common/area.h>
 #include <libecap/common/message.h>
 #include <libecap/host/xaction.h>
-#include <tr1/memory>
 #include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <mutex>
-#include <condition_variable>
 #include <thread>
 #include <vector>
 #include <array>
@@ -63,11 +62,13 @@ class Service: public libecap::adapter::Service {
 		void worker();
 		bool requeue(libecap::shared_ptr<Xaction> x);
 
+		std::string ErrLogName;
+		std::string CompLogName;
 		std::mutex WorkMutex;
 		std::condition_variable WorkCondition;
-		std::deque<libecap::shared_ptr<Xaction>> WorkQueue;
+		std::deque<libecap::shared_ptr<Xaction> > WorkQueue;
 		std::mutex ReadyMutex;
-		std::deque<libecap::shared_ptr<Xaction>> ReadyQueue;
+		std::deque<libecap::shared_ptr<Xaction> > ReadyQueue;
 		std::vector<std::thread> Workers;
 		std::size_t WorkerCount;
 		bool Stopping;
@@ -83,7 +84,7 @@ class Cfgtor: public libecap::NamedValueVisitor {
 
 class Xaction: public libecap::adapter::Xaction {
 	public:
-		Xaction(libecap::shared_ptr<Service> s, libecap::host::Xaction *x);
+		Xaction(Service *s, libecap::host::Xaction *x);
 		virtual ~Xaction();
 		void setSelf(const libecap::shared_ptr<Xaction> &self);
 
@@ -103,11 +104,7 @@ class Xaction: public libecap::adapter::Xaction {
 		virtual void noteVbContentAvailable();
 
 		std::string contentTypeString;
-		static void ErrorLog(const std::string &p_log_entry, bool p_ErrLog = false);
-
-	protected:
-		void stopVb();
-		libecap::host::Xaction *lastHostCall();
+		static void ErrorLog(const std::string &p_log_entry, bool p_ErrLog, const std::string &p_log_name);
 
 	private:
 		friend class Service;
@@ -129,8 +126,13 @@ class Xaction: public libecap::adapter::Xaction {
 		void processInput(InputChunk &input);
 		void finishCompression(bool atEnd);
 		void signalReady();
-	
-		libecap::shared_ptr<Service> service;
+		void stopVb();
+		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
+			const std::string &p_Type, const std::string &p_compType = "deflate");
+		bool requirementsAreMet();
+		bool gzipInitialize();
+
+		Service *service;
 		libecap::host::Xaction *hostx;
 		libecap::weak_ptr<Xaction> self;
 
@@ -141,14 +143,15 @@ class Xaction: public libecap::adapter::Xaction {
 		std::deque<InputChunk> inputQueue;
 		std::deque<OutputChunk> outputQueue;
 		mutable std::mutex queueMutex;
-		bool inputDone;
 		bool finalPending;
 		bool compressionFinished;
 		bool finalSent;
+		bool processingFailed;
 		bool stopped;
 		std::atomic<bool> workScheduled;
+		std::atomic<bool> readyScheduled;
 		bool gzipMode;
-		std::size_t checksum;
+		uLong checksum;
 		std::size_t originalSize;
 		std::size_t compressedSize;
 		bool zstreamInitialized;
@@ -167,11 +170,6 @@ class Xaction: public libecap::adapter::Xaction {
 				requestContentLengthOk(false), requestContentXecapOk(true), requestAcceptEncodingGzip(false),
 				requestAcceptEncodingDeflate(false) {}
 		} controlFlags;
-
-		bool requirementsAreMet();
-		bool gzipInitialize();
-		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
-			const std::string &p_Type, const std::string &p_compType = "deflate");
 };
 
 inline bool Xaction::requirementsAreMet() {
