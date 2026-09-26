@@ -118,3 +118,7 @@ Version 2.0.0.0 (09-14-2026)
 
 Version 2.1.0.0 (09-22-2026)
 * IMPROVEMENT: Refined asynchronous GZIP/DEFLATE processing, worker scheduling, output handling, and Squid parameter support; removed the internal std::tr1 dependency. By Yuri Voinov.
+
+Version 2.2.0.0 (09-26-2026)
+* IMPROVEMENT: Reworked asynchronous worker scheduling to provide race-free per-Xaction work ownership and synchronized work and ready queue management. By Yuri Voinov.
+
