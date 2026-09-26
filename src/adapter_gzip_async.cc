@@ -211,21 +211,20 @@ void Service::start() {
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
 		if (!Workers.empty()) return;
-		Stopping = false;
 	}
+	Stopping.store(false, std::memory_order_relaxed);
 
 	try {
 		for (std::size_t i = 0; i < WorkerCount; ++i)
 			Workers.emplace_back(std::thread(&Service::worker, this)); // constructing object in-place
 	} catch (const std::system_error &e) {
-		{
-			std::lock_guard<std::mutex> lock(WorkMutex);
-			Stopping = true;
-		}
+		Stopping.store(true, std::memory_order_relaxed);
 		WorkCondition.notify_all();
+
 		for (std::thread &worker : Workers)
 			if (worker.joinable()) worker.join();
 		Workers.clear();
+
 		Xaction::ErrorLog(std::string(ERR_WORKER) + e.what(), ErrLog, ErrLogName);
 		return;
 	}
@@ -258,16 +257,13 @@ void Service::resume() {
 		readyQueue.swap(ReadyQueue);
 	}
 	for (const libecap::shared_ptr<Xaction> &x : readyQueue) {
-		x->readyScheduled.store(false, std::memory_order_release);
+		x->readyScheduled.store(false, std::memory_order_relaxed);
 		x->resumeHost();
 	}
 }
 
 void Service::stop() {
-	{
-		std::lock_guard<std::mutex> lock(WorkMutex);
-		Stopping = true;
-	}
+	Stopping.store(true, std::memory_order_relaxed);
 	WorkCondition.notify_all();
 
 	for (std::thread &worker : Workers)
@@ -277,13 +273,14 @@ void Service::stop() {
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
 		for (const libecap::shared_ptr<Xaction> &x : WorkQueue)
-			if (x) x->workScheduled.store(false, std::memory_order_release);
+			x->workScheduled = false;
 		WorkQueue.clear();
 	}
+
 	{
 		std::lock_guard<std::mutex> lock(ReadyMutex);
 		for (const libecap::shared_ptr<Xaction> &x : ReadyQueue)
-			if (x) x->readyScheduled.store(false, std::memory_order_release);
+			x->readyScheduled.store(false, std::memory_order_relaxed);
 		ReadyQueue.clear();
 	}
 }
@@ -304,44 +301,25 @@ Adapter::Service::MadeXactionPointer Service::makeXaction(libecap::host::Xaction
 }
 
 void Service::enqueue(libecap::shared_ptr<Xaction> x) {
-	if (!x) return;
 	// workScheduled is the single scheduling token for this transaction.
-	// Only one queue entry may own it at a time.
-	bool expected = false;
-	if (!x->workScheduled.compare_exchange_strong(expected, true,
-			std::memory_order_acq_rel, std::memory_order_acquire))
-		return;
-
+	// WorkMutex protects both the token and WorkQueue, so only one queue entry may own it at a time.
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
-		if (Stopping) {
-			x->workScheduled.store(false, std::memory_order_release);
+		if (Stopping.load(std::memory_order_relaxed) || x->workScheduled)
 			return;
-		}
+		x->workScheduled = true;
 		WorkQueue.push_back(x);
 	}
 	WorkCondition.notify_one();
-}
-
-bool Service::requeue(libecap::shared_ptr<Xaction> x) {
-	{
-		std::lock_guard<std::mutex> lock(WorkMutex);
-		if (Stopping) return false;
-		WorkQueue.push_back(x);
-	}
-	WorkCondition.notify_one();
-	return true;
 }
 
 void Service::ready(libecap::shared_ptr<Xaction> x) {
-	{
-		std::lock_guard<std::mutex> lock(ReadyMutex);
-		if (Stopping) {
-			x->readyScheduled.store(false, std::memory_order_release);
-			return;
-		}
-		ReadyQueue.push_back(x);
+	std::lock_guard<std::mutex> lock(ReadyMutex);
+	if (Stopping.load(std::memory_order_relaxed)) {
+		x->readyScheduled.store(false, std::memory_order_relaxed);
+		return;
 	}
+	ReadyQueue.push_back(x);
 }
 
 void Service::worker() {
@@ -349,24 +327,40 @@ void Service::worker() {
 		libecap::shared_ptr<Xaction> x;
 		{
 			std::unique_lock<std::mutex> lock(WorkMutex);
-			WorkCondition.wait(lock, [this] { return Stopping || !WorkQueue.empty(); });
-			if (Stopping && WorkQueue.empty()) return;
+			WorkCondition.wait(lock, [this] {
+				return Stopping.load(std::memory_order_relaxed) ||
+					!WorkQueue.empty();
+			});
+			if (Stopping.load(std::memory_order_relaxed) && WorkQueue.empty())
+				return;
+
 			x = WorkQueue.front();
 			WorkQueue.pop_front();
 			++ActiveWork;
 		}
 
 		const bool moreWork = x->processOne();
-		if (moreWork) {
-			// Process one input chunk per queue turn so a large transaction
-			// cannot monopolize a worker while other transactions are waiting.
-			if (!requeue(x))
-				x->workScheduled.store(false, std::memory_order_release);
-		} else x->workScheduled.store(false, std::memory_order_release);
+		bool requeued = false;
+		{
+			std::lock_guard<std::mutex> workLock(WorkMutex);
+			if (!Stopping.load(std::memory_order_relaxed)) {
+				std::lock_guard<std::mutex> queueLock(x->queueMutex);
+				if (!x->stopped && !x->processingFailed &&
+					(moreWork || !x->inputQueue.empty() ||
+						(x->finalPending && !x->compressionFinished))) {
+					// Process one input chunk per queue turn so a large transaction
+					// cannot monopolize a worker while other transactions are waiting.
+					WorkQueue.push_back(x);
+					requeued = true;
+				} else x->workScheduled = false;
+			} else x->workScheduled = false;
+		}
+
+		if (requeued) WorkCondition.notify_one();
 
 		{
 			std::lock_guard<std::mutex> lock(WorkMutex);
-			if (ActiveWork > 0) --ActiveWork;
+			--ActiveWork;
 		}
 	}
 }
@@ -426,7 +420,6 @@ bool Xaction::gzipInitialize() {
 }
 
 void Xaction::start() {
-	if (!hostx) return;
 	if (hostx->virgin().body()) {
 		receivingVb = OpState::opOn;
 		hostx->vbMake();
@@ -436,7 +429,6 @@ void Xaction::start() {
 	libecap::FirstLine *firstLine = &(hostx->virgin().firstLine());
 	libecap::StatusLine *statusLine = static_cast<libecap::StatusLine*>(firstLine);
 	libecap::shared_ptr<libecap::Message> adapted = hostx->virgin().clone();
-	if (!adapted) return;
 
 	const libecap::Header::Value contentType = adapted->header().value(contentTypeName);
 	if (adapted->header().hasAny(contentTypeName) && contentType.size > 0)
@@ -510,13 +502,16 @@ void Xaction::stop() {
 	hostx = nullptr;
 	inputQueue.clear();
 	outputQueue.clear();
-	workScheduled.store(false, std::memory_order_release);
-	readyScheduled.store(false, std::memory_order_release);
 }
 
 void Xaction::resumeHost() {
-	libecap::host::Xaction *x = hostx;
-	if (x) x->resume();
+	libecap::host::Xaction *x;
+	{
+		std::lock_guard<std::mutex> lock(queueMutex);
+		if (stopped) return;
+		x = hostx;
+	}
+	x->resume();
 }
 
 void Xaction::resume() {
@@ -528,7 +523,7 @@ void Xaction::resume() {
 
 	{
 		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped || !hostx) return;
+		if (stopped) return;
 		x = hostx;
 		if (processingFailed) {
 			processingFailed = false;
@@ -564,7 +559,7 @@ void Xaction::abDiscard() {
 }
 
 void Xaction::abMake() {
-	if (sendingAb != OpState::opUndecided || !hostx) return;
+	if (sendingAb != OpState::opUndecided) return;
 	if (!hostx->virgin().body()) return;
 	sendingAb = OpState::opOn;
 	bool available = false;
@@ -581,7 +576,7 @@ void Xaction::abMake() {
 }
 
 void Xaction::abMakeMore() {
-	if (receivingVb == OpState::opOn && hostx)
+	if (receivingVb == OpState::opOn)
 		hostx->vbMakeMore();
 }
 
@@ -618,8 +613,7 @@ void Xaction::abContentShift(libecap::size_type size) {
 	}
 
 	if (more) {
-		if (hostx)
-			hostx->noteAbContentAvailable();
+		hostx->noteAbContentAvailable();
 	} else if (done)
 		signalReady();
 }
@@ -636,7 +630,7 @@ void Xaction::noteVbContentDone(bool aAtEnd) {
 }
 
 void Xaction::noteVbContentAvailable() {
-	if (!hostx || receivingVb != OpState::opOn) return;
+	if (receivingVb != OpState::opOn) return;
 	const libecap::Area vb = hostx->vbContent(0, libecap::nsize);
 	if (!vb.size) return;
 
@@ -722,6 +716,7 @@ void Xaction::processInput(InputChunk &input) {
 	output.data.resize(headerSize + produced);
 	if (!output.data.empty()) {
 		std::lock_guard<std::mutex> lock(queueMutex);
+		if (stopped) return;
 		outputQueue.push_back(std::move(output));
 		compressedSize += headerSize + produced;
 	}
@@ -779,6 +774,7 @@ void Xaction::finishCompression(bool aAtEnd) {
 
 	{
 		std::lock_guard<std::mutex> lock(queueMutex);
+		if (stopped) return;
 		if (!output.data.empty())
 			outputQueue.push_back(std::move(output));
 		finalPending = false;
@@ -794,15 +790,14 @@ void Xaction::signalReady() {
 
 	bool expected = false;
 	if (!readyScheduled.compare_exchange_strong(expected, true,
-			std::memory_order_acq_rel, std::memory_order_acquire))
+			std::memory_order_relaxed, std::memory_order_relaxed))
 		return;
 	service->ready(x);
 }
 
 void Xaction::stopVb() {
 	if (receivingVb == OpState::opOn) {
-		if (hostx)
-			hostx->vbStopMaking();
+		hostx->vbStopMaking();
 		receivingVb = OpState::opComplete;
 	}
 }

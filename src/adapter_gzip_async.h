@@ -60,7 +60,6 @@ class Service: public libecap::adapter::Service {
 		friend class Xaction;
 
 		void worker();
-		bool requeue(libecap::shared_ptr<Xaction> x);
 
 		std::string ErrLogName;
 		std::string CompLogName;
@@ -71,7 +70,7 @@ class Service: public libecap::adapter::Service {
 		std::deque<libecap::shared_ptr<Xaction> > ReadyQueue;
 		std::vector<std::thread> Workers;
 		std::size_t WorkerCount;
-		bool Stopping;
+		std::atomic<bool> Stopping;// Atomic because worker threads check it while waiting without holding WorkMutex
 		std::size_t ActiveWork;
 };
 
@@ -148,7 +147,7 @@ class Xaction: public libecap::adapter::Xaction {
 		bool finalSent;
 		bool processingFailed;
 		bool stopped;
-		std::atomic<bool> workScheduled;
+		bool workScheduled;
 		std::atomic<bool> readyScheduled;
 		bool gzipMode;
 		uLong checksum;
