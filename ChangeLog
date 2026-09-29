@@ -122,3 +122,5 @@ Version 2.1.0.0 (09-22-2026)
 Version 2.2.0.0 (09-26-2026)
 * IMPROVEMENT: Reworked asynchronous worker scheduling to provide race-free per-Xaction work ownership and synchronized work and ready queue management. By Yuri Voinov.
 
+Version 2.2.0.0 (09-30-2026)
+* IMPROVEMENT: Reduced unnecessary object copies and temporary allocations in asynchronous queueing, configuration handling, and Accept-Encoding processing. By Yuri Voinov.
