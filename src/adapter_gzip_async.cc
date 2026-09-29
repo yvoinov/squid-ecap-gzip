@@ -94,6 +94,7 @@
 #include <string>
 #include <algorithm>
 #include <array>
+#include <utility>
 #ifdef HAVE_SYS_TIME_H
 #	include <sys/time.h>
 #else
@@ -193,11 +194,17 @@ void Service::setOne(const libecap::Name &name, const libecap::Area &valArea) {
 		Level = v > 9 ? z_compression_level : static_cast<std::size_t>(v);
 	} else if (name == "errlog")
 		ErrLog = std::abs(std::stoi(value)) > 0;
-	else if (name == "errlogname")
-		ErrLogName = value.empty() ? ECAP_ERROR_LOG : value;
-	else if (name == "complogname")
-		CompLogName = value.empty() ? ECAP_COMPRESSION_LOG : value;
-	else if (name == "complog")
+	else if (name == "errlogname") {
+		if (value.empty())
+			ErrLogName = ECAP_ERROR_LOG;
+		else
+			ErrLogName = std::move(value);
+	} else if (name == "complogname") {
+		if (value.empty())
+			CompLogName = ECAP_COMPRESSION_LOG;
+		else
+			CompLogName = std::move(value);
+	} else if (name == "complog")
 		CompLog = std::abs(std::stoi(value)) > 0;
 	else if (name == "workers") {
 		const int count = std::stoi(value);
@@ -216,7 +223,7 @@ void Service::start() {
 
 	try {
 		for (std::size_t i = 0; i < WorkerCount; ++i)
-			Workers.emplace_back(std::thread(&Service::worker, this)); // constructing object in-place
+			Workers.emplace_back(&Service::worker, this);
 	} catch (const std::system_error &e) {
 		Stopping.store(true, std::memory_order_relaxed);
 		WorkCondition.notify_all();
@@ -308,7 +315,7 @@ void Service::enqueue(libecap::shared_ptr<Xaction> x) {
 		if (Stopping.load(std::memory_order_relaxed) || x->workScheduled)
 			return;
 		x->workScheduled = true;
-		WorkQueue.push_back(x);
+		WorkQueue.emplace_back(std::move(x));
 	}
 	WorkCondition.notify_one();
 }
@@ -319,7 +326,7 @@ void Service::ready(libecap::shared_ptr<Xaction> x) {
 		x->readyScheduled.store(false, std::memory_order_relaxed);
 		return;
 	}
-	ReadyQueue.push_back(x);
+	ReadyQueue.emplace_back(std::move(x));
 }
 
 void Service::worker() {
@@ -334,7 +341,7 @@ void Service::worker() {
 			if (Stopping.load(std::memory_order_relaxed) && WorkQueue.empty())
 				return;
 
-			x = WorkQueue.front();
+			x = std::move(WorkQueue.front());
 			WorkQueue.pop_front();
 			++ActiveWork;
 		}
@@ -350,7 +357,7 @@ void Service::worker() {
 						(x->finalPending && !x->compressionFinished))) {
 					// Process one input chunk per queue turn so a large transaction
 					// cannot monopolize a worker while other transactions are waiting.
-					WorkQueue.push_back(x);
+					WorkQueue.emplace_back(std::move(x));
 					requeued = true;
 				} else x->workScheduled = false;
 			} else x->workScheduled = false;
@@ -438,10 +445,11 @@ void Xaction::start() {
 	if (hostx->cause().header().hasAny(acceptEncodingName) && statusLine->statusCode() == 200) {
 		const libecap::Header::Value acceptEncoding = hostx->cause().header().value(acceptEncodingName);
 		if (acceptEncoding.size > 0) {
+			const std::string acceptEncodingValue = acceptEncoding.toString();
 			controlFlags.requestAcceptEncodingOk = true;
-			if (acceptEncoding.toString().find(EcapGzip) != std::string::npos)
+			if (acceptEncodingValue.find(EcapGzip) != std::string::npos)
 				controlFlags.requestAcceptEncodingGzip = true;
-			else if (acceptEncoding.toString().find(EcapDeflate) != std::string::npos)
+			else if (acceptEncodingValue.find(EcapDeflate) != std::string::npos)
 				controlFlags.requestAcceptEncodingDeflate = true;
 		}
 	}
@@ -792,7 +800,7 @@ void Xaction::signalReady() {
 	if (!readyScheduled.compare_exchange_strong(expected, true,
 			std::memory_order_relaxed, std::memory_order_relaxed))
 		return;
-	service->ready(x);
+	service->ready(std::move(x));
 }
 
 void Xaction::stopVb() {
