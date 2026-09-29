@@ -185,7 +185,7 @@ void Service::reconfigure(const libecap::Options &cfg) {
 }
 
 void Service::setOne(const libecap::Name &name, const libecap::Area &valArea) {
-	const std::string value = valArea.toString();
+	std::string value = valArea.toString();
 	if (name == "maxsize") {
 		const int v = std::stoi(value);
 		if (v > 0) MaxSize = static_cast<std::size_t>(v);
