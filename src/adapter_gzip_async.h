@@ -119,6 +119,35 @@ class Xaction: public libecap::adapter::Xaction {
 			OutputChunk(): offset(0) {}
 		};
 
+		struct CompressionContext {
+			z_stream zstream;
+			std::deque<InputChunk> inputQueue;
+			std::deque<OutputChunk> outputQueue;
+			mutable std::mutex queueMutex;
+			bool finalPending;
+			bool compressionFinished;
+			bool processingFailed;
+			uLong checksum;
+			std::size_t originalSize;
+			std::size_t compressedSize;
+			bool zstreamInitialized;
+
+			CompressionContext(): finalPending(false), compressionFinished(false), processingFailed(false),
+				checksum(crc32(0L, Z_NULL, 0)), originalSize(0), compressedSize(0), zstreamInitialized(false) {
+				zstream.zalloc = Z_NULL;
+				zstream.zfree = Z_NULL;
+				zstream.opaque = Z_NULL;
+			}
+		};
+
+		struct SchedulerContext {
+			bool stopped;
+			bool workScheduled;
+			std::atomic<bool> readyScheduled;
+
+			SchedulerContext(): stopped(false), workScheduled(false), readyScheduled(false) {}
+		};
+
 		enum class OpState { opUndecided, opOn, opComplete, opNever };
 
 		bool processOne();
@@ -127,7 +156,7 @@ class Xaction: public libecap::adapter::Xaction {
 		void signalReady();
 		void stopVb();
 		void CompressionLog(std::size_t p_origSize, std::size_t p_compSize, double p_compRatio,
-			const std::string &p_Type, const std::string &p_compType = "deflate");
+				const std::string &p_Type, const std::string &p_compType);
 		bool requirementsAreMet();
 		bool gzipInitialize();
 
@@ -138,22 +167,8 @@ class Xaction: public libecap::adapter::Xaction {
 		OpState receivingVb;
 		OpState sendingAb;
 
-		z_stream zstream;
-		std::deque<InputChunk> inputQueue;
-		std::deque<OutputChunk> outputQueue;
-		mutable std::mutex queueMutex;
-		bool finalPending;
-		bool compressionFinished;
-		bool finalSent;
-		bool processingFailed;
-		bool stopped;
-		bool workScheduled;
-		std::atomic<bool> readyScheduled;
-		bool gzipMode;
-		uLong checksum;
-		std::size_t originalSize;
-		std::size_t compressedSize;
-		bool zstreamInitialized;
+		CompressionContext compression;
+		SchedulerContext scheduler;
 		bool atEnd;
 
 		struct Controls {

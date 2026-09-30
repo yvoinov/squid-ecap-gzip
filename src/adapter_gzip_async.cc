@@ -264,7 +264,7 @@ void Service::resume() {
 		readyQueue.swap(ReadyQueue);
 	}
 	for (const libecap::shared_ptr<Xaction> &x : readyQueue) {
-		x->readyScheduled.store(false, std::memory_order_relaxed);
+		x->scheduler.readyScheduled.store(false, std::memory_order_relaxed);
 		x->resumeHost();
 	}
 }
@@ -280,14 +280,14 @@ void Service::stop() {
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
 		for (const libecap::shared_ptr<Xaction> &x : WorkQueue)
-			x->workScheduled = false;
+			x->scheduler.workScheduled = false;
 		WorkQueue.clear();
 	}
 
 	{
 		std::lock_guard<std::mutex> lock(ReadyMutex);
 		for (const libecap::shared_ptr<Xaction> &x : ReadyQueue)
-			x->readyScheduled.store(false, std::memory_order_relaxed);
+			x->scheduler.readyScheduled.store(false, std::memory_order_relaxed);
 		ReadyQueue.clear();
 	}
 }
@@ -312,9 +312,9 @@ void Service::enqueue(libecap::shared_ptr<Xaction> x) {
 	// WorkMutex protects both the token and WorkQueue, so only one queue entry may own it at a time.
 	{
 		std::lock_guard<std::mutex> lock(WorkMutex);
-		if (Stopping.load(std::memory_order_relaxed) || x->workScheduled)
+		if (Stopping.load(std::memory_order_relaxed) || x->scheduler.workScheduled)
 			return;
-		x->workScheduled = true;
+		x->scheduler.workScheduled = true;
 		WorkQueue.emplace_back(std::move(x));
 	}
 	WorkCondition.notify_one();
@@ -323,7 +323,7 @@ void Service::enqueue(libecap::shared_ptr<Xaction> x) {
 void Service::ready(libecap::shared_ptr<Xaction> x) {
 	std::lock_guard<std::mutex> lock(ReadyMutex);
 	if (Stopping.load(std::memory_order_relaxed)) {
-		x->readyScheduled.store(false, std::memory_order_relaxed);
+		x->scheduler.readyScheduled.store(false, std::memory_order_relaxed);
 		return;
 	}
 	ReadyQueue.emplace_back(std::move(x));
@@ -351,16 +351,16 @@ void Service::worker() {
 		{
 			std::lock_guard<std::mutex> workLock(WorkMutex);
 			if (!Stopping.load(std::memory_order_relaxed)) {
-				std::lock_guard<std::mutex> queueLock(x->queueMutex);
-				if (!x->stopped && !x->processingFailed &&
-					(moreWork || !x->inputQueue.empty() ||
-						(x->finalPending && !x->compressionFinished))) {
+				std::lock_guard<std::mutex> queueLock(x->compression.queueMutex);
+				if (!x->scheduler.stopped && !x->compression.processingFailed &&
+					(moreWork || !x->compression.inputQueue.empty() ||
+						(x->compression.finalPending && !x->compression.compressionFinished))) {
 					// Process one input chunk per queue turn so a large transaction
 					// cannot monopolize a worker while other transactions are waiting.
 					WorkQueue.emplace_back(std::move(x));
 					requeued = true;
-				} else x->workScheduled = false;
-			} else x->workScheduled = false;
+				} else x->scheduler.workScheduled = false;
+			} else x->scheduler.workScheduled = false;
 		}
 
 		if (requeued) WorkCondition.notify_one();
@@ -377,18 +377,12 @@ void Xaction::setSelf(const libecap::shared_ptr<Xaction> &aSelf) {
 }
 
 Xaction::Xaction(Service *aService, libecap::host::Xaction *x):
-	service(aService), hostx(x), receivingVb(OpState::opUndecided), sendingAb(OpState::opUndecided),
-	finalPending(false), compressionFinished(false), finalSent(false), processingFailed(false),
-	stopped(false), workScheduled(false), readyScheduled(false), gzipMode(false), checksum(crc32(0L, Z_NULL, 0)),
-	originalSize(0), compressedSize(0), zstreamInitialized(false), atEnd(false) {
-	zstream.zalloc = Z_NULL;
-	zstream.zfree = Z_NULL;
-	zstream.opaque = Z_NULL;
+	service(aService), hostx(x), receivingVb(OpState::opUndecided), sendingAb(OpState::opUndecided), atEnd(false) {
 }
 
 Xaction::~Xaction() {
-	if (zstreamInitialized)
-		deflateEnd(&zstream);
+	if (compression.zstreamInitialized)
+		deflateEnd(&compression.zstream);
 	if (libecap::host::Xaction *x = hostx) {
 		hostx = nullptr;
 		x->adaptationAborted();
@@ -405,14 +399,12 @@ void Xaction::visitEachOption(libecap::NamedValueVisitor&) const {
 bool Xaction::gzipInitialize() {
 	int rc;
 	if (controlFlags.requestAcceptEncodingGzip) {
-		gzipMode = true;
-		rc = deflateInit2(&zstream, static_cast<int>(service->Level), Z_DEFLATED, -MAX_WBITS, 9, Z_DEFAULT_STRATEGY);
+		rc = deflateInit2(&compression.zstream, static_cast<int>(service->Level), Z_DEFLATED, -MAX_WBITS, 9, Z_DEFAULT_STRATEGY);
 	} else {
-		gzipMode = false;
-		rc = deflateInit(&zstream, static_cast<int>(service->Level));
+		rc = deflateInit(&compression.zstream, static_cast<int>(service->Level));
 	}
 	if (rc == Z_OK) {
-		zstreamInitialized = true;
+		compression.zstreamInitialized = true;
 		return true;
 	}
 	if (rc == Z_STREAM_ERROR)
@@ -505,18 +497,18 @@ void Xaction::start() {
 }
 
 void Xaction::stop() {
-	std::lock_guard<std::mutex> lock(queueMutex);
-	stopped = true;
+	std::lock_guard<std::mutex> lock(compression.queueMutex);
+	scheduler.stopped = true;
 	hostx = nullptr;
-	inputQueue.clear();
-	outputQueue.clear();
+	compression.inputQueue.clear();
+	compression.outputQueue.clear();
 }
 
 void Xaction::resumeHost() {
 	libecap::host::Xaction *x;
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped) return;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped) return;
 		x = hostx;
 	}
 	x->resume();
@@ -530,22 +522,21 @@ void Xaction::resume() {
 	bool doneAtEnd = false;
 
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped) return;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped) return;
 		x = hostx;
-		if (processingFailed) {
-			processingFailed = false;
-			inputQueue.clear();
-			outputQueue.clear();
-			finalPending = false;
-			compressionFinished = false;
+		if (compression.processingFailed) {
+			compression.processingFailed = false;
+			compression.inputQueue.clear();
+			compression.outputQueue.clear();
+			compression.finalPending = false;
+			compression.compressionFinished = false;
 			notifyAbort = true;
 		} else {
-			notifyAvailable = !outputQueue.empty() && sendingAb == OpState::opOn;
-			notifyDone = compressionFinished && outputQueue.empty() && !finalSent && sendingAb == OpState::opOn;
+			notifyAvailable = !compression.outputQueue.empty() && sendingAb == OpState::opOn;
+			notifyDone = compression.compressionFinished && compression.outputQueue.empty() && sendingAb == OpState::opOn;
 			doneAtEnd = atEnd;
 			if (notifyDone) {
-				finalSent = true;
 				sendingAb = OpState::opComplete;
 				receivingVb = OpState::opComplete;
 			}
@@ -574,10 +565,10 @@ void Xaction::abMake() {
 	bool done = false;
 	bool failed = false;
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		available = !outputQueue.empty();
-		done = compressionFinished && outputQueue.empty() && !finalSent;
-		failed = processingFailed;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		available = !compression.outputQueue.empty();
+		done = compression.compressionFinished && compression.outputQueue.empty();
+		failed = compression.processingFailed;
 	}
 	if (available || done || failed)
 		signalReady();
@@ -594,10 +585,10 @@ void Xaction::abStopMaking() {
 }
 
 libecap::Area Xaction::abContent(libecap::size_type offset, libecap::size_type size) {
-	std::lock_guard<std::mutex> lock(queueMutex);
-	if (sendingAb != OpState::opOn || outputQueue.empty())
+	std::lock_guard<std::mutex> lock(compression.queueMutex);
+	if (sendingAb != OpState::opOn || compression.outputQueue.empty())
 		return libecap::Area::FromTempString("");
-	OutputChunk &chunk = outputQueue.front();
+	OutputChunk &chunk = compression.outputQueue.front();
 	if (offset >= chunk.data.size() - chunk.offset)
 		return libecap::Area::FromTempString("");
 	const std::size_t start = chunk.offset + offset;
@@ -610,14 +601,14 @@ void Xaction::abContentShift(libecap::size_type size) {
 	bool more = false;
 	bool done = false;
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (outputQueue.empty()) return;
-		OutputChunk &chunk = outputQueue.front();
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (compression.outputQueue.empty()) return;
+		OutputChunk &chunk = compression.outputQueue.front();
 		chunk.offset += size;
 		if (chunk.offset == chunk.data.size())
-			outputQueue.pop_front();
-		more = !outputQueue.empty();
-		done = !more && compressionFinished && !finalSent && sendingAb == OpState::opOn;
+			compression.outputQueue.pop_front();
+		more = !compression.outputQueue.empty();
+		done = !more && compression.compressionFinished && sendingAb == OpState::opOn;
 	}
 
 	if (more) {
@@ -628,10 +619,10 @@ void Xaction::abContentShift(libecap::size_type size) {
 
 void Xaction::noteVbContentDone(bool aAtEnd) {
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped || receivingVb != OpState::opOn) return;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped || receivingVb != OpState::opOn) return;
 		atEnd = aAtEnd;
-		finalPending = true;
+		compression.finalPending = true;
 	}
 	service->enqueue(self.lock());
 	signalReady();
@@ -646,9 +637,9 @@ void Xaction::noteVbContentAvailable() {
 	input.data.assign(reinterpret_cast<const unsigned char *>(vb.start),
 		reinterpret_cast<const unsigned char *>(vb.start) + vb.size);
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped) return;
-		inputQueue.push_back(std::move(input));
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped) return;
+		compression.inputQueue.push_back(std::move(input));
 	}
 	hostx->vbContentShift(vb.size);
 	service->enqueue(self.lock());
@@ -662,14 +653,14 @@ bool Xaction::processOne() {
 	bool finishAtEnd = false;
 
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped || processingFailed) return false;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped || compression.processingFailed) return false;
 
-		if (!inputQueue.empty()) {
-			input = std::move(inputQueue.front());
-			inputQueue.pop_front();
+		if (!compression.inputQueue.empty()) {
+			input = std::move(compression.inputQueue.front());
+			compression.inputQueue.pop_front();
 			haveInput = true;
-		} else if (finalPending && !compressionFinished) {
+		} else if (compression.finalPending && !compression.compressionFinished) {
 			doFinish = true;
 			finishAtEnd = atEnd;
 		}
@@ -684,9 +675,9 @@ bool Xaction::processOne() {
 		signalReady();
 
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped || processingFailed) return false;
-		return !inputQueue.empty() || (finalPending && !compressionFinished);
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped || compression.processingFailed) return false;
+		return !compression.inputQueue.empty() || (compression.finalPending && !compression.compressionFinished);
 	}
 }
 
@@ -694,101 +685,100 @@ void Xaction::processInput(InputChunk &input) {
 	if (input.data.empty()) return;
 
 	const std::size_t inputSize = input.data.size();
-	originalSize += inputSize;
-	if (gzipMode)
-		checksum = crc32(checksum, input.data.data(), static_cast<uInt>(inputSize));
+	compression.originalSize += inputSize;
+	if (controlFlags.requestAcceptEncodingGzip)
+		compression.checksum = crc32(compression.checksum, input.data.data(), static_cast<uInt>(inputSize));
 
 	OutputChunk output;
-	const std::size_t headerSize = gzipMode && originalSize == inputSize ? gzipHeader.size() : 0;
-	const uLong bound = deflateBound(&zstream, static_cast<uLong>(inputSize));
+	const std::size_t headerSize = controlFlags.requestAcceptEncodingGzip && compression.originalSize == inputSize ? gzipHeader.size() : 0;
+	const uLong bound = deflateBound(&compression.zstream, static_cast<uLong>(inputSize));
 	output.data.resize(headerSize + static_cast<std::size_t>(bound) + zlib_overhead);
 	if (headerSize)
 		std::copy(gzipHeader.begin(), gzipHeader.end(), output.data.begin());
 
-	zstream.next_in = input.data.data();
-	zstream.avail_in = static_cast<uInt>(inputSize);
-	zstream.next_out = output.data.data() + headerSize;
-	zstream.avail_out = static_cast<uInt>(output.data.size() - headerSize);
+	compression.zstream.next_in = input.data.data();
+	compression.zstream.avail_in = static_cast<uInt>(inputSize);
+	compression.zstream.next_out = output.data.data() + headerSize;
+	compression.zstream.avail_out = static_cast<uInt>(output.data.size() - headerSize);
 
-	const int rc = deflate(&zstream, Z_SYNC_FLUSH);
-	if (rc != Z_OK || zstream.avail_in != 0) {
+	const int rc = deflate(&compression.zstream, Z_SYNC_FLUSH);
+	if (rc != Z_OK || compression.zstream.avail_in != 0) {
 		ErrorLog(ERR_UNKNOWN + std::to_string(rc), service->ErrLog, service->ErrLogName);
-		std::lock_guard<std::mutex> lock(queueMutex);
-		processingFailed = true;
-		inputQueue.clear();
-		outputQueue.clear();
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		compression.processingFailed = true;
+		compression.inputQueue.clear();
+		compression.outputQueue.clear();
 		return;
 	}
 
-	const std::size_t produced = output.data.size() - headerSize - zstream.avail_out;
+	const std::size_t produced = output.data.size() - headerSize - compression.zstream.avail_out;
 	output.data.resize(headerSize + produced);
 	if (!output.data.empty()) {
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped) return;
-		outputQueue.push_back(std::move(output));
-		compressedSize += headerSize + produced;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped) return;
+		compression.outputQueue.push_back(std::move(output));
+		compression.compressedSize += headerSize + produced;
 	}
 }
 
 void Xaction::finishCompression(bool aAtEnd) {
 	OutputChunk output;
 	output.data.resize(zlib_overhead);
-	zstream.next_in = Z_NULL;
-	zstream.avail_in = 0;
-	zstream.next_out = output.data.data();
-	zstream.avail_out = static_cast<uInt>(output.data.size());
+	compression.zstream.next_in = Z_NULL;
+	compression.zstream.avail_in = 0;
+	compression.zstream.next_out = output.data.data();
+	compression.zstream.avail_out = static_cast<uInt>(output.data.size());
 
-	const int rc = deflate(&zstream, Z_FINISH);
+	const int rc = deflate(&compression.zstream, Z_FINISH);
 	if (rc != Z_STREAM_END) {
 		ErrorLog(ERR_UNKNOWN_2 + std::to_string(rc), service->ErrLog, service->ErrLogName);
-		if (zstreamInitialized) {
-			deflateEnd(&zstream);
-			zstreamInitialized = false;
+		if (compression.zstreamInitialized) {
+			deflateEnd(&compression.zstream);
+			compression.zstreamInitialized = false;
 		}
-		std::lock_guard<std::mutex> lock(queueMutex);
-		finalPending = false;
-		processingFailed = true;
-		outputQueue.clear();
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		compression.finalPending = false;
+		compression.processingFailed = true;
+		compression.outputQueue.clear();
 		return;
 	}
 
-	const std::size_t produced = output.data.size() - zstream.avail_out;
+	const std::size_t produced = output.data.size() - compression.zstream.avail_out;
 	output.data.resize(produced);
-	if (gzipMode) {
+	if (controlFlags.requestAcceptEncodingGzip) {
 		// GZIP stores CRC32 and ISIZE as 32-bit little-endian values.
 		const std::array<unsigned char, 8> trailer = {{
-			static_cast<unsigned char>(checksum),
-			static_cast<unsigned char>(checksum >> 8),
-			static_cast<unsigned char>(checksum >> 16),
-			static_cast<unsigned char>(checksum >> 24),
-			static_cast<unsigned char>(originalSize),
-			static_cast<unsigned char>(originalSize >> 8),
-			static_cast<unsigned char>(originalSize >> 16),
-			static_cast<unsigned char>(originalSize >> 24)
+			static_cast<unsigned char>(compression.checksum),
+			static_cast<unsigned char>(compression.checksum >> 8),
+			static_cast<unsigned char>(compression.checksum >> 16),
+			static_cast<unsigned char>(compression.checksum >> 24),
+			static_cast<unsigned char>(compression.originalSize),
+			static_cast<unsigned char>(compression.originalSize >> 8),
+			static_cast<unsigned char>(compression.originalSize >> 16),
+			static_cast<unsigned char>(compression.originalSize >> 24)
 		}};
 		output.data.insert(output.data.end(), trailer.begin(), trailer.end());
 	}
 
-	compressedSize += output.data.size();
-	if (zstreamInitialized) {
-		deflateEnd(&zstream);
-		zstreamInitialized = false;
+	compression.compressedSize += output.data.size();
+	if (compression.zstreamInitialized) {
+		deflateEnd(&compression.zstream);
+		compression.zstreamInitialized = false;
 	}
 
 	if (service->CompLog) {
-		const double ratio = originalSize > 0 ? 1.0 - static_cast<double>(compressedSize) / static_cast<double>(originalSize) : 0.0;
-		CompressionLog(originalSize, compressedSize, ratio, contentTypeString, gzipMode ? EcapGzip : EcapDeflate);
+		const double ratio = compression.originalSize > 0 ? 1.0 - static_cast<double>(compression.compressedSize) / static_cast<double>(compression.originalSize) : 0.0;
+		CompressionLog(compression.originalSize, compression.compressedSize, ratio, contentTypeString, controlFlags.requestAcceptEncodingGzip ? EcapGzip : EcapDeflate);
 	}
 
 	{
-		std::lock_guard<std::mutex> lock(queueMutex);
-		if (stopped) return;
+		std::lock_guard<std::mutex> lock(compression.queueMutex);
+		if (scheduler.stopped) return;
 		if (!output.data.empty())
-			outputQueue.push_back(std::move(output));
-		finalPending = false;
-		compressionFinished = true;
-		finalSent = false;
-		atEnd = aAtEnd;
+			compression.outputQueue.push_back(std::move(output));
+		compression.finalPending = false;
+		compression.compressionFinished = true;
+			atEnd = aAtEnd;
 	}
 }
 
@@ -797,7 +787,7 @@ void Xaction::signalReady() {
 	if (!x) return;
 
 	bool expected = false;
-	if (!readyScheduled.compare_exchange_strong(expected, true,
+	if (!scheduler.readyScheduled.compare_exchange_strong(expected, true,
 			std::memory_order_relaxed, std::memory_order_relaxed))
 		return;
 	service->ready(std::move(x));
